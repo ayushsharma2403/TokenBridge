@@ -1,59 +1,21 @@
-"""
-database.py — SQLite setup and connection helper
-
-All other files import from here. This keeps DB logic in one place
-so if we ever switch to PostgreSQL, we only change this file.
-"""
-
-import sqlite3
-import os
-
-# Database file lives in the backend folder
-DB_FILE = os.path.join(os.path.dirname(__file__), "data.db")
+import mysql.connector
+from mysql.connector import Error
+from config import DB_CONFIG
 
 
 def connect():
-    """
-    Returns a connection to the SQLite database.
-    row_factory lets us access columns by name instead of index.
-    e.g. row["session_id"] instead of row[0]
-    """
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        return mysql.connector.connect(**DB_CONFIG)
+    except Error as e:
+        raise ConnectionError(f"MySQL connection failed: {e}")
 
 
 def setup():
-    """
-    Creates all the tables we need if they don't exist yet.
-    Call this once at server startup — safe to call multiple times.
-    """
     conn = connect()
     c = conn.cursor()
-
-    # sessions: stores full conversation history for each user
-    # ON CONFLICT(session_id) in checkpoint.py will upsert into this table
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS sessions (
-            session_id   TEXT PRIMARY KEY,
-            messages     TEXT    NOT NULL,
-            provider     TEXT    DEFAULT 'claude',
-            created_at   TEXT    NOT NULL,
-            updated_at   TEXT    NOT NULL
-        )
-    """)
-
-    # usage_log: every API call gets logged here so we can track spending
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS usage_log (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id   TEXT    NOT NULL,
-            tokens_used  INTEGER NOT NULL,
-            call_type    TEXT,
-            logged_at    TEXT    NOT NULL
-        )
-    """)
-
+    c.execute("""CREATE TABLE IF NOT EXISTS sessions (session_id VARCHAR(150) NOT NULL, messages LONGTEXT NOT NULL, provider VARCHAR(50) DEFAULT 'claude', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (session_id))""")
+    c.execute("""CREATE TABLE IF NOT EXISTS usage_log (id INT AUTO_INCREMENT, session_id VARCHAR(150) NOT NULL, tokens_used INT NOT NULL, call_type VARCHAR(50) DEFAULT 'chat', logged_at DATETIME DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))""")
     conn.commit()
+    c.close()
     conn.close()
-    print("[DB] Tables are ready.")
+    print("[DB] Tables ready.")

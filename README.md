@@ -52,11 +52,17 @@ pip install -r requirements.txt
 
 **4. Add your API keys**
 ```bash
-# Copy the example file
+# Mac / Linux / Git Bash
 cp .env.example .env
 
-# Then open .env and paste in your API key
+# Windows Command Prompt
+copy .env.example .env
+
+# Windows PowerShell
+Copy-Item .env.example .env
 ```
+
+Then open `.env` and paste in your API key.
 
 **5. Run the server**
 ```bash
