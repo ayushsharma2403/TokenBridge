@@ -1,88 +1,82 @@
-"""
-router.py — AI provider router
-
-Handles the actual API calls to Claude and OpenAI.
-Both functions have the same signature → (reply, tokens_used)
-so main.py doesn't need to know which provider it's talking to.
-"""
-
 import anthropic
+import google.generativeai as genai
+from openai import AsyncOpenAI
 from typing import Tuple
+from config import CLAUDE_MODEL, OPENAI_MODEL, GEMINI_MODEL
 
 
-# Using the cheapest models — good for students with limited credits
-# Users can change these in the future (Phase 6 feature)
-CLAUDE_MODEL  = "claude-haiku-4-5-20251001"
-OPENAI_MODEL  = "gpt-4o-mini"
+def detect_provider(api_key: str, provider: str = None) -> str:
+    """Auto-detect provider from API key if provider not specified."""
+    if provider and provider.strip().lower() != "auto":
+        return provider.strip().lower()
+    if api_key.startswith("sk-ant-"):
+        return "claude"
+    elif api_key.startswith("AIza"):
+        return "gemini"
+    else:
+        return "openai"
 
 
-# ------------------------------------------------------------------
-# Claude
-# ------------------------------------------------------------------
-
-async def send_to_claude(messages: list, api_key: str) -> Tuple[str, int]:
-    """Sends a chat request to Claude and returns (reply_text, tokens_used)."""
-    client = anthropic.AsyncAnthropic(api_key=api_key)
-
+async def send_to_claude(messages: list, api_key: str) -> Tuple[str, int, int]:
+    client   = anthropic.AsyncAnthropic(api_key=api_key)
     response = await client.messages.create(
         model=CLAUDE_MODEL,
         max_tokens=1024,
         messages=messages
     )
+    return (
+        response.content[0].text,
+        response.usage.input_tokens,
+        response.usage.output_tokens
+    )
 
-    reply  = response.content[0].text
-    tokens = response.usage.input_tokens + response.usage.output_tokens
 
-    return reply, tokens
-
-
-# ------------------------------------------------------------------
-# OpenAI
-# ------------------------------------------------------------------
-
-async def send_to_openai(messages: list, api_key: str) -> Tuple[str, int]:
-    """Sends a chat request to OpenAI and returns (reply_text, tokens_used)."""
-    try:
-        from openai import AsyncOpenAI
-    except ImportError:
-        raise RuntimeError(
-            "The 'openai' package is not installed. "
-            "Run: pip install openai"
-        )
-
-    client = AsyncOpenAI(api_key=api_key)
-
+async def send_to_openai(messages: list, api_key: str) -> Tuple[str, int, int]:
+    client   = AsyncOpenAI(api_key=api_key)
     response = await client.chat.completions.create(
         model=OPENAI_MODEL,
         max_tokens=1024,
         messages=messages
     )
+    return (
+        response.choices[0].message.content,
+        response.usage.prompt_tokens,
+        response.usage.completion_tokens
+    )
 
-    reply  = response.choices[0].message.content
-    tokens = response.usage.total_tokens
 
-    return reply, tokens
+async def send_to_gemini(messages: list, api_key: str) -> Tuple[str, int, int]:
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(GEMINI_MODEL)
+
+    # Convert messages to Gemini format
+    history = []
+    for msg in messages[:-1]:
+        role = "user" if msg["role"] == "user" else "model"
+        history.append({"role": role, "parts": [msg["content"]]})
+
+    chat     = model.start_chat(history=history)
+    response = chat.send_message(messages[-1]["content"])
+
+    input_tokens  = response.usage_metadata.prompt_token_count
+    output_tokens = response.usage_metadata.candidates_token_count
+    return response.text, input_tokens, output_tokens
 
 
-# ------------------------------------------------------------------
-# Main routing function (this is what main.py calls)
-# ------------------------------------------------------------------
-
-async def call_api(messages: list, api_key: str, provider: str) -> Tuple[str, int]:
+async def call_api(messages: list, api_key: str, provider: str) -> Tuple[str, int, int]:
     """
-    Routes the request to the right AI provider.
-
-    provider: "claude" or "openai"
-    Returns: (reply_text, tokens_used)
+    Routes to the correct provider.
+    Returns (reply, input_tokens, output_tokens)
     """
-    provider = provider.strip().lower()
+    provider = detect_provider(api_key, provider)
 
     if provider == "claude":
         return await send_to_claude(messages, api_key)
     elif provider == "openai":
         return await send_to_openai(messages, api_key)
+    elif provider == "gemini":
+        return await send_to_gemini(messages, api_key)
     else:
         raise ValueError(
-            f"Unknown provider: '{provider}'. "
-            "Accepted values are 'claude' or 'openai'."
+            f"Unknown provider: {provider}. Valid: claude, openai, gemini"
         )
