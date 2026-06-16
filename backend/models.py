@@ -1,5 +1,42 @@
 from pydantic import BaseModel
+from typing import Optional
 
+
+# -------------------------------------------------------
+# Auth
+# -------------------------------------------------------
+
+class RegisterRequest(BaseModel):
+    name:     str
+    email:    str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email:       str
+    password:    str
+    remember_me: bool = False
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token:        str
+    new_password: str
+
+
+class AuthResponse(BaseModel):
+    token:   str
+    user_id: int
+    name:    str
+    email:   str
+
+
+# -------------------------------------------------------
+# Chat
+# -------------------------------------------------------
 
 class ChatRequest(BaseModel):
     session_id:   str
@@ -18,6 +55,10 @@ class ChatResponse(BaseModel):
     checkpoint_saved: bool
 
 
+# -------------------------------------------------------
+# Prompt Engineering
+# -------------------------------------------------------
+
 class PromptEngineerRequest(BaseModel):
     raw_prompt: str
     api_key:    str
@@ -30,6 +71,10 @@ class PromptEngineerResponse(BaseModel):
     word_count:      dict
     saving_estimate: str
 
+
+# -------------------------------------------------------
+# Session / Usage
+# -------------------------------------------------------
 
 class SessionInfo(BaseModel):
     session_id:    str
