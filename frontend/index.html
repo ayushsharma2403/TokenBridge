@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TokenBridge</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="orb-container">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <div class="app-layout">
+
+    <aside class="sidebar glass" id="sidebar">
+
+      <div class="sidebar-logo">
+        <span class="logo-icon">⚡</span>
+        <h2>TokenBridge</h2>
+      </div>
+
+      <div class="user-card glass">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div class="user-info">
+          <div class="user-name"  id="user-name">Loading...</div>
+          <div class="user-email" id="user-email"></div>
+        </div>
+      </div>
+
+      <div class="section-label">AI Provider</div>
+      <select class="sidebar-select" id="provider-select" onchange="onProviderChange()">
+        <option value="claude">Claude (Anthropic)</option>
+        <option value="openai">OpenAI (GPT)</option>
+        <option value="gemini">Google Gemini</option>
+      </select>
+
+      <div class="section-label">API Key</div>
+      <div class="api-key-wrap">
+        <input type="password" id="api-key-input" placeholder="Paste your API key...">
+        <button class="eye-btn" onclick="toggleApiKey()">👁</button>
+      </div>
+
+      <div class="section-label">Token Budget</div>
+      <div class="api-key-wrap">
+        <input type="number" id="token-budget" value="50000" min="1000" max="1000000" style="padding-right:12px">
+      </div>
+
+      <div class="section-label">Token Usage</div>
+      <div class="token-meter-wrap">
+        <div class="token-meter-labels">
+          <span id="tokens-used">0 used</span>
+          <span id="tokens-left">50,000 left</span>
+        </div>
+        <div class="token-meter-bar">
+          <div class="token-meter-fill" id="token-fill" style="width:100%"></div>
+        </div>
+      </div>
+
+      <div class="section-label">TokenVault</div>
+      <div id="vault-rows">
+        <div class="vault-row">
+          <span class="vault-provider">Claude</span>
+          <span class="vault-tokens" id="vault-claude">0</span>
+          <span class="vault-cost"   id="cost-claude">/usr/bin/bash</span>
+        </div>
+        <div class="vault-row">
+          <span class="vault-provider">OpenAI</span>
+          <span class="vault-tokens" id="vault-openai">0</span>
+          <span class="vault-cost"   id="cost-openai">/usr/bin/bash</span>
+        </div>
+        <div class="vault-row">
+          <span class="vault-provider">Gemini</span>
+          <span class="vault-tokens" id="vault-gemini">0</span>
+          <span class="vault-cost"   id="cost-gemini">/usr/bin/bash.00</span>
+        </div>
+      </div>
+
+      <div class="section-label">Sessions</div>
+      <div id="session-list"></div>
+
+      <div style="margin-top:auto; display:flex; flex-direction:column; gap:8px; padding-top:12px;">
+        <button class="sidebar-btn" onclick="newChat()">➕ New Chat</button>
+        <button class="sidebar-btn" onclick="toggleTheme()">🌙 Toggle Theme</button>
+        <button class="sidebar-btn danger" onclick="handleLogout()">🚪 Logout</button>
+      </div>
+
+    </aside>
+
+    <main class="chat-area">
+
+      <div class="chat-header glass">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div class="hamburger" onclick="openSidebar()">
+            <span></span><span></span><span></span>
+          </div>
+          <h3 id="chat-title">New Chat</h3>
+        </div>
+        <div class="header-actions">
+          <div class="icon-btn" onclick="togglePromptPanel()" title="Prompt Engineer">✨</div>
+          <div class="icon-btn" onclick="clearChat()"          title="Clear chat">🗑️</div>
+          <div class="icon-btn" onclick="toggleTheme()"        title="Toggle theme">🌙</div>
+        </div>
+      </div>
+
+      <div class="messages-area" id="messages-area">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">⚡</div>
+          <h3>Start a conversation</h3>
+          <p>Select a provider, paste your API key, and start chatting. Your progress is auto-saved.</p>
+        </div>
+      </div>
+
+      <div class="prompt-panel glass hidden" id="prompt-panel">
+        <div class="prompt-panel-header" onclick="togglePromptPanel()">
+          <h4>✨ Prompt Engineer <span style="font-size:11px;color:var(--text-sub);font-weight:400;">— optimize before sending</span></h4>
+          <span style="color:var(--text-sub); font-size:12px;">▼</span>
+        </div>
+        <div class="prompt-panel-body">
+          <textarea id="raw-prompt" placeholder="Type your raw prompt here..." rows="2"></textarea>
+          <div class="prompt-actions">
+            <button class="btn-optimize" onclick="optimizePrompt()">⚡ Optimize</button>
+            <button class="btn-use hidden" id="btn-use-prompt" onclick="useOptimizedPrompt()">Use this →</button>
+          </div>
+          <div class="optimized-result hidden" id="optimized-result"></div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-wrap">
+          <textarea
+            id="message-input"
+            placeholder="Type a message... (Ctrl+Enter to send)"
+            rows="1"
+            oninput="autoResize(this)"
+            onkeydown="handleKey(event)">
+          </textarea>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">➤</button>
+        </div>
+        <p class="input-hint">Session: <span id="session-id-display">—</span></p>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
