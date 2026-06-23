@@ -17,6 +17,16 @@ let sessions     = [];
 // -------------------------------------------------------
 
 window.onload = function() {
+  // Handle Google OAuth redirect with token in URL
+  const params = new URLSearchParams(window.location.search);
+  const urlToken = params.get("token");
+  if (urlToken) {
+    localStorage.setItem("tb_token",   urlToken);
+    localStorage.setItem("tb_user_id", params.get("user_id") || "");
+    localStorage.setItem("tb_name",    decodeURIComponent(params.get("name") || "User"));
+    localStorage.setItem("tb_email",   params.get("email") || "");
+    window.history.replaceState({}, document.title, "/index.html");
+  }
   loadTheme();
   checkAuth();
   loadUserInfo();

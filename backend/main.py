@@ -1,5 +1,7 @@
 import uvicorn
 from fastapi import FastAPI, HTTPException, Header
+from fastapi.responses import RedirectResponse
+from urllib.parse import quote
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
@@ -25,6 +27,7 @@ from auth            import (
 )
 from oauth           import get_google_login_url, handle_google_callback
 from email_service   import send_reset_email
+from firebase_auth   import login_with_phone
 
 
 app = FastAPI(
@@ -36,7 +39,10 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
+    allow_credentials=True,
     allow_methods=["*"],
+    allow_headers=["*"],
     allow_headers=["*"],
 )
 
@@ -95,8 +101,14 @@ async def google_login():
 async def google_callback(code: str):
     result = await handle_google_callback(code)
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return AuthResponse(**result)
+        return RedirectResponse(f"http://localhost:5500/login.html?error={result[chr(39)+'error'+chr(39)]}")
+    token   = result["token"]
+    user_id = result["user_id"]
+    name    = quote(str(result["name"]))
+    email   = quote(str(result["email"]))
+    return RedirectResponse(
+        f"http://localhost:5500/index.html?token={token}&user_id={user_id}&name={name}&email={email}"
+    )
 
 
 @app.post("/auth/forgot-password")
@@ -255,5 +267,24 @@ async def tokenvault_global(authorization: Optional[str] = Header(None)):
     return global_stats()
 
 
+
+from pydantic import BaseModel as _BaseModel
+
+class _EmailCheck(_BaseModel):
+    email: str
+
+@app.post("/auth/check-email")
+async def check_email_exists(req: _EmailCheck):
+    from database import connect
+    conn = connect()
+    c    = conn.cursor()
+    c.execute("SELECT id FROM users WHERE email = %s", (req.email,))
+    exists = c.fetchone() is not None
+    c.close()
+    conn.close()
+    return {"exists": exists}
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host=HOST, port=PORT, reload=DEBUG)
+
+
