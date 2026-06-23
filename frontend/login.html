@@ -78,7 +78,7 @@
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" alt="G">
         Continue with Google
       </button>
-      <button class="social-btn" onclick="showStep(is phone)">
+      <button class="social-btn" onclick="showStep('phone')">
         <span style="font-size:18px">📱</span>
         Continue with phone
       </button>
@@ -89,11 +89,11 @@
     </div>
 
     <div id="step-password" class="step">
-      <button class="back-link" onclick="showStep(is main)">← Back</button>
+      <button class="back-link" onclick="showStep('main')">← Back</button>
       <div class="modal-title" id="pwd-title">Welcome back</div>
       <div class="email-shown" id="pwd-email"></div>
       <input class="email-input" type="password" id="pwd-input" placeholder="Password" onkeydown="if(event.key===&apos;Enter&apos;)submitPassword()">
-      <a href="#" class="forgot-link" onclick="showStep(is forgot)">Forgot password?</a>
+      <a href="#" class="forgot-link" onclick="showStep('forgot')">Forgot password?</a>
       <label style="display:flex;align-items:center;gap:8px;color:#888;font-size:13px;margin-bottom:16px;cursor:pointer">
         <input type="checkbox" id="remember-me" style="accent-color:#6d28d9"> Remember me for 30 days
       </label>
@@ -101,7 +101,7 @@
     </div>
 
     <div id="step-signup" class="step">
-      <button class="back-link" onclick="showStep(is main)">← Back</button>
+      <button class="back-link" onclick="showStep('main')">← Back</button>
       <div class="modal-title">Create account</div>
       <div class="email-shown" id="signup-email"></div>
       <input class="email-input" type="text" id="name-input" placeholder="Full name" style="margin-bottom:12px">
@@ -110,7 +110,7 @@
     </div>
 
     <div id="step-phone" class="step">
-      <button class="back-link" onclick="showStep(is main)">← Back</button>
+      <button class="back-link" onclick="showStep('main')">← Back</button>
       <div class="modal-title">Enter phone number</div>
       <div class="modal-sub">We will send you a 6-digit OTP.</div>
       <input class="email-input" type="tel" id="phone-input" placeholder="+91 98765 43210">
@@ -119,25 +119,25 @@
     </div>
 
     <div id="step-otp" class="step">
-      <button class="back-link" onclick="showStep(is phone)">← Back</button>
+      <button class="back-link" onclick="showStep('phone')">← Back</button>
       <div class="modal-title">Enter OTP</div>
       <div class="modal-sub" id="otp-sent-to">OTP sent to your phone</div>
       <div class="otp-inputs">
-        <input class="otp-input" type="text" maxlength="1" id="otp-1" oninput="otpNext(this,is otp-2)">
-        <input class="otp-input" type="text" maxlength="1" id="otp-2" oninput="otpNext(this,is otp-3)">
-        <input class="otp-input" type="text" maxlength="1" id="otp-3" oninput="otpNext(this,is otp-4)">
-        <input class="otp-input" type="text" maxlength="1" id="otp-4" oninput="otpNext(this,is otp-5)">
-        <input class="otp-input" type="text" maxlength="1" id="otp-5" oninput="otpNext(this,is otp-6)">
+        <input class="otp-input" type="text" maxlength="1" id="otp-1" oninput="otpNext(this,'otp-2')">
+        <input class="otp-input" type="text" maxlength="1" id="otp-2" oninput="otpNext(this,'otp-3')">
+        <input class="otp-input" type="text" maxlength="1" id="otp-3" oninput="otpNext(this,'otp-4')">
+        <input class="otp-input" type="text" maxlength="1" id="otp-4" oninput="otpNext(this,'otp-5')">
+        <input class="otp-input" type="text" maxlength="1" id="otp-5" oninput="otpNext(this,'otp-6')">
         <input class="otp-input" type="text" maxlength="1" id="otp-6" oninput="otpNext(this,null)">
       </div>
       <button class="continue-btn" onclick="verifyOTP()">Verify OTP</button>
       <p style="text-align:center;font-size:12px;color:#888;margin-top:12px;">
-        Did not receive? <a href="#" style="color:#6d28d9" onclick="showStep(is phone)">Resend</a>
+        Did not receive? <a href="#" style="color:#6d28d9" onclick="showStep('phone')">Resend</a>
       </p>
     </div>
 
     <div id="step-forgot" class="step">
-      <button class="back-link" onclick="showStep(is password)">← Back</button>
+      <button class="back-link" onclick="showStep('password')">← Back</button>
       <div class="modal-title">Reset password</div>
       <div class="modal-sub">We will send a reset link to your email.</div>
       <input class="email-input" type="email" id="forgot-email" placeholder="Email address">
