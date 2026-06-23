@@ -1,6 +1,6 @@
 // Firebase configuration
 // Replace these values with your actual Firebase config
-const firebaseConfig = {
+const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBB04UJhEEeudRJvdGMZ-mw7qL7JIx5vIA",
   authDomain: "tokenbridge-42c87.firebaseapp.com",
   projectId: "tokenbridge-42c87",
