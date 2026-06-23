@@ -932,3 +932,14 @@ body {
 .empty-state .empty-icon { font-size: 48px; opacity: 0.5; margin-bottom: 8px; }
 .empty-state h3 { font-size: 18px; font-weight: 600; color: var(--text); }
 .empty-state p  { font-size: 13px; max-width: 300px; line-height: 1.6; }
+
+/* --- Fix dropdown option colors --- */
+.sidebar-select option {
+    background: #110426;
+    color: #f5f5f7;
+    font-family: Poppins, sans-serif;
+}
+[data-theme="light"] .sidebar-select option {
+    background: #ffffff;
+    color: #1d1d1f;
+}

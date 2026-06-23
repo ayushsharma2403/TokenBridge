@@ -6,116 +6,56 @@
   <title>TokenBridge - Login</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #0a0006;
-      font-family: Poppins, sans-serif;
-    }
-    .orb-container { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-    .orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.3; animation: orbFloat 8s ease-in-out infinite; }
-    .orb-1 { width: 500px; height: 500px; background: radial-gradient(circle, #6d28d9, transparent); top: -150px; left: -150px; }
-    .orb-2 { width: 400px; height: 400px; background: radial-gradient(circle, #4c1d95, transparent); bottom: -100px; right: -100px; animation-delay: -3s; }
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:#0a0006; font-family:Poppins,sans-serif; }
+    .orb-container { position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+    .orb { position:absolute; border-radius:50%; filter:blur(80px); opacity:0.3; animation:orbFloat 8s ease-in-out infinite; }
+    .orb-1 { width:500px; height:500px; background:radial-gradient(circle,#6d28d9,transparent); top:-150px; left:-150px; }
+    .orb-2 { width:400px; height:400px; background:radial-gradient(circle,#4c1d95,transparent); bottom:-100px; right:-100px; animation-delay:-3s; }
     @keyframes orbFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-20px)} }
-    .theme-btn { position: fixed; top: 20px; right: 20px; z-index: 10; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
-    .theme-btn:hover { transform: scale(1.1); background: rgba(255,255,255,0.2); }
-    .modal {
-      position: relative;
-      z-index: 1;
-      background: #212121;
-      border-radius: 16px;
-      padding: 36px 32px 32px;
-      width: 100%;
-      max-width: 380px;
-      box-shadow: 0 32px 80px rgba(0,0,0,0.7);
-      animation: fadeUp 0.5s ease;
-    }
-    [data-theme="light"] body { background: #f5f5f7; }
-    [data-theme="light"] .modal { background: #ffffff; box-shadow: 0 32px 80px rgba(0,0,0,0.12); }
+    .theme-btn { position:fixed; top:20px; right:20px; z-index:10; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); color:white; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.3s; }
+    .theme-btn:hover { transform:scale(1.1); }
+    .modal { position:relative; z-index:1; background:#212121; border-radius:16px; padding:36px 32px 32px; width:100%; max-width:380px; box-shadow:0 32px 80px rgba(0,0,0,0.7); animation:fadeUp 0.5s ease; }
+    [data-theme="light"] body { background:#f5f5f7; }
+    [data-theme="light"] .modal { background:#ffffff; box-shadow:0 32px 80px rgba(0,0,0,0.12); }
     @keyframes fadeUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
-    .logo { text-align: center; margin-bottom: 24px; }
-    .logo span { font-size: 32px; }
-    .logo h1 { font-size: 14px; font-weight: 600; color: #888; margin-top: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
-    [data-theme="light"] .logo h1 { color: #666; }
-    .modal-title { font-size: 24px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 6px; }
-    [data-theme="light"] .modal-title { color: #1a1a1a; }
-    .modal-sub { font-size: 13px; color: #888; text-align: center; margin-bottom: 28px; line-height: 1.5; }
-    .social-btn {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 14px 20px;
-      border-radius: 99px;
-      border: 1px solid rgba(255,255,255,0.15);
-      background: transparent;
-      color: #fff;
-      font-family: Poppins, sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.25s;
-      margin-bottom: 12px;
-    }
-    [data-theme="light"] .social-btn { border-color: rgba(0,0,0,0.15); color: #1a1a1a; }
-    .social-btn:hover { background: rgba(255,255,255,0.08); transform: translateY(-1px); }
-    [data-theme="light"] .social-btn:hover { background: rgba(0,0,0,0.04); }
-    .social-btn img { width: 18px; height: 18px; }
-    .divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
-    .divider::before,.divider::after { content:""; flex:1; height:1px; background: rgba(255,255,255,0.1); }
-    [data-theme="light"] .divider::before,[data-theme="light"] .divider::after { background: rgba(0,0,0,0.1); }
-    .divider span { color: #888; font-size: 12px; }
-    .email-input {
-      width: 100%;
-      padding: 15px 20px;
-      border-radius: 99px;
-      border: 1.5px solid rgba(255,255,255,0.1);
-      background: #000;
-      color: #fff;
-      font-family: Poppins, sans-serif;
-      font-size: 14px;
-      outline: none;
-      transition: all 0.25s;
-      box-sizing: border-box;
-      margin-bottom: 12px;
-    }
-    [data-theme="light"] .email-input { background: #f0f0f0; color: #1a1a1a; border-color: rgba(0,0,0,0.1); }
-    .email-input:focus { border-color: #6d28d9; box-shadow: 0 0 0 3px rgba(109,40,217,0.2); }
-    .email-input::placeholder { color: #666; }
-    [data-theme="light"] .email-input::placeholder { color: #999; }
-    .continue-btn {
-      width: 100%;
-      padding: 15px 20px;
-      border-radius: 99px;
-      border: none;
-      background: #fff;
-      color: #000;
-      font-family: Poppins, sans-serif;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.25s;
-      margin-bottom: 8px;
-    }
-    [data-theme="light"] .continue-btn { background: #1a1a1a; color: #fff; }
-    .continue-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,255,255,0.15); opacity: 0.92; }
-    .terms { font-size: 11px; color: #666; text-align: center; margin-top: 16px; line-height: 1.6; }
-    .terms a { color: #888; text-decoration: underline; }
-    .msg { margin-top: 14px; padding: 12px; border-radius: 12px; font-size: 13px; text-align: center; display: none; }
-    .msg.error { background: rgba(255,69,58,0.15); color: #ff453a; display: block; }
-    .msg.success { background: rgba(50,215,75,0.15); color: #32d74b; display: block; }
-    /* Password step */
-    .password-step { display: none; }
-    .back-link { background: none; border: none; color: #888; font-family: Poppins, sans-serif; font-size: 13px; cursor: pointer; margin-bottom: 16px; padding: 0; display: flex; align-items: center; gap: 6px; transition: color 0.2s; }
-    .back-link:hover { color: #fff; }
-    [data-theme="light"] .back-link:hover { color: #1a1a1a; }
-    .email-shown { font-size: 14px; color: #888; text-align: center; margin-bottom: 20px; }
-    .forgot-link { display: block; text-align: right; color: #6d28d9; font-size: 12px; text-decoration: none; margin-bottom: 16px; margin-top: -6px; }
-    .forgot-link:hover { text-decoration: underline; }
+    .logo { text-align:center; margin-bottom:24px; }
+    .logo span { font-size:32px; }
+    .logo h1 { font-size:14px; font-weight:600; color:#888; margin-top:4px; letter-spacing:0.05em; text-transform:uppercase; }
+    .modal-title { font-size:24px; font-weight:700; color:#fff; text-align:center; margin-bottom:6px; }
+    [data-theme="light"] .modal-title { color:#1a1a1a; }
+    .modal-sub { font-size:13px; color:#888; text-align:center; margin-bottom:28px; line-height:1.5; }
+    .social-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:12px; padding:14px 20px; border-radius:99px; border:1px solid rgba(255,255,255,0.15); background:transparent; color:#fff; font-family:Poppins,sans-serif; font-size:14px; font-weight:500; cursor:pointer; transition:all 0.25s; margin-bottom:12px; }
+    [data-theme="light"] .social-btn { border-color:rgba(0,0,0,0.15); color:#1a1a1a; }
+    .social-btn:hover { background:rgba(255,255,255,0.08); transform:translateY(-1px); }
+    .divider { display:flex; align-items:center; gap:12px; margin:20px 0; }
+    .divider::before,.divider::after { content:""; flex:1; height:1px; background:rgba(255,255,255,0.1); }
+    [data-theme="light"] .divider::before,[data-theme="light"] .divider::after { background:rgba(0,0,0,0.1); }
+    .divider span { color:#888; font-size:12px; }
+    .email-input { width:100%; padding:15px 20px; border-radius:99px; border:1.5px solid rgba(255,255,255,0.1); background:#000; color:#fff; font-family:Poppins,sans-serif; font-size:14px; outline:none; transition:all 0.25s; box-sizing:border-box; margin-bottom:12px; }
+    [data-theme="light"] .email-input { background:#f0f0f0; color:#1a1a1a; border-color:rgba(0,0,0,0.1); }
+    .email-input:focus { border-color:#6d28d9; box-shadow:0 0 0 3px rgba(109,40,217,0.2); }
+    .email-input::placeholder { color:#666; }
+    .continue-btn { width:100%; padding:15px 20px; border-radius:99px; border:none; background:#fff; color:#000; font-family:Poppins,sans-serif; font-size:14px; font-weight:700; cursor:pointer; transition:all 0.25s; margin-bottom:8px; }
+    [data-theme="light"] .continue-btn { background:#1a1a1a; color:#fff; }
+    .continue-btn:hover { transform:translateY(-1px); opacity:0.92; }
+    .continue-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+    .terms { font-size:11px; color:#666; text-align:center; margin-top:16px; line-height:1.6; }
+    .terms a { color:#888; text-decoration:underline; }
+    .msg { margin-top:14px; padding:12px; border-radius:12px; font-size:13px; text-align:center; display:none; }
+    .msg.error { background:rgba(255,69,58,0.15); color:#ff453a; display:block; }
+    .msg.success { background:rgba(50,215,75,0.15); color:#32d74b; display:block; }
+    .step { display:none; }
+    .step.active { display:block; }
+    .back-link { background:none; border:none; color:#888; font-family:Poppins,sans-serif; font-size:13px; cursor:pointer; margin-bottom:16px; padding:0; }
+    .back-link:hover { color:#fff; }
+    [data-theme="light"] .back-link:hover { color:#1a1a1a; }
+    .email-shown { font-size:14px; color:#888; text-align:center; margin-bottom:20px; }
+    .forgot-link { display:block; text-align:right; color:#6d28d9; font-size:12px; text-decoration:none; margin-bottom:16px; margin-top:-6px; }
+    .otp-inputs { display:flex; gap:10px; justify-content:center; margin-bottom:20px; }
+    .otp-input { width:45px; height:52px; border-radius:12px; border:1.5px solid rgba(255,255,255,0.15); background:#000; color:#fff; font-size:20px; font-weight:700; text-align:center; font-family:Poppins,sans-serif; outline:none; transition:all 0.25s; }
+    [data-theme="light"] .otp-input { background:#f0f0f0; color:#1a1a1a; }
+    .otp-input:focus { border-color:#6d28d9; box-shadow:0 0 0 3px rgba(109,40,217,0.2); }
+    #recaptcha-container { display:flex; justify-content:center; margin-bottom:16px; }
   </style>
 </head>
 <body>
@@ -123,7 +63,6 @@
     <div class="orb orb-1"></div>
     <div class="orb orb-2"></div>
   </div>
-
   <button class="theme-btn" onclick="toggleTheme()" id="theme-btn">☀️</button>
 
   <div class="modal">
@@ -132,62 +71,72 @@
       <h1>TokenBridge</h1>
     </div>
 
-    <div id="step-main">
+    <div id="step-main" class="step active">
       <div class="modal-title">Log in or sign up</div>
       <div class="modal-sub">Better AI. Fewer tokens. Resume anytime.</div>
-
       <button class="social-btn" onclick="handleGoogleLogin()">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" alt="G">
         Continue with Google
       </button>
-
-      <button class="social-btn" onclick="handlePhoneLogin()">
+      <button class="social-btn" onclick="showStep(is phone)">
         <span style="font-size:18px">📱</span>
         Continue with phone
       </button>
-
       <div class="divider"><span>OR</span></div>
-
       <input class="email-input" type="email" id="email-input" placeholder="Email address" onkeydown="if(event.key===&apos;Enter&apos;)checkEmail()">
       <button class="continue-btn" onclick="checkEmail()">Continue</button>
-
-      <div class="terms">
-        By continuing, you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.
-      </div>
+      <div class="terms">By continuing, you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.</div>
     </div>
 
-    <div id="step-password" class="password-step">
-      <button class="back-link" onclick="backToMain()">← Back</button>
+    <div id="step-password" class="step">
+      <button class="back-link" onclick="showStep(is main)">← Back</button>
       <div class="modal-title" id="pwd-title">Welcome back</div>
       <div class="email-shown" id="pwd-email"></div>
-
       <input class="email-input" type="password" id="pwd-input" placeholder="Password" onkeydown="if(event.key===&apos;Enter&apos;)submitPassword()">
-      <a href="#" class="forgot-link" onclick="handleForgotPassword()">Forgot password?</a>
+      <a href="#" class="forgot-link" onclick="showStep(is forgot)">Forgot password?</a>
       <label style="display:flex;align-items:center;gap:8px;color:#888;font-size:13px;margin-bottom:16px;cursor:pointer">
         <input type="checkbox" id="remember-me" style="accent-color:#6d28d9"> Remember me for 30 days
       </label>
       <button class="continue-btn" onclick="submitPassword()">Continue</button>
     </div>
 
-    <div id="step-signup" class="password-step">
-      <button class="back-link" onclick="backToMain()">← Back</button>
+    <div id="step-signup" class="step">
+      <button class="back-link" onclick="showStep(is main)">← Back</button>
       <div class="modal-title">Create account</div>
       <div class="email-shown" id="signup-email"></div>
-
       <input class="email-input" type="text" id="name-input" placeholder="Full name" style="margin-bottom:12px">
       <input class="email-input" type="password" id="signup-pwd" placeholder="Password (min 8 chars)" onkeydown="if(event.key===&apos;Enter&apos;)submitSignup()">
       <button class="continue-btn" onclick="submitSignup()" style="margin-top:12px">Create Account</button>
     </div>
 
-    <div id="step-phone" class="password-step">
-      <button class="back-link" onclick="backToMain()">← Back</button>
+    <div id="step-phone" class="step">
+      <button class="back-link" onclick="showStep(is main)">← Back</button>
       <div class="modal-title">Enter phone number</div>
-      <div class="modal-sub">We will send you a verification code.</div>
+      <div class="modal-sub">We will send you a 6-digit OTP.</div>
       <input class="email-input" type="tel" id="phone-input" placeholder="+91 98765 43210">
-      <div class="msg error" id="phone-msg">Phone login coming soon. Please use email or Google.</div>
+      <div id="recaptcha-container"></div>
+      <button class="continue-btn" id="send-otp-btn" onclick="sendPhoneOTP()">Send OTP</button>
     </div>
 
-    <div id="step-forgot" class="password-step">
+    <div id="step-otp" class="step">
+      <button class="back-link" onclick="showStep(is phone)">← Back</button>
+      <div class="modal-title">Enter OTP</div>
+      <div class="modal-sub" id="otp-sent-to">OTP sent to your phone</div>
+      <div class="otp-inputs">
+        <input class="otp-input" type="text" maxlength="1" id="otp-1" oninput="otpNext(this,is otp-2)">
+        <input class="otp-input" type="text" maxlength="1" id="otp-2" oninput="otpNext(this,is otp-3)">
+        <input class="otp-input" type="text" maxlength="1" id="otp-3" oninput="otpNext(this,is otp-4)">
+        <input class="otp-input" type="text" maxlength="1" id="otp-4" oninput="otpNext(this,is otp-5)">
+        <input class="otp-input" type="text" maxlength="1" id="otp-5" oninput="otpNext(this,is otp-6)">
+        <input class="otp-input" type="text" maxlength="1" id="otp-6" oninput="otpNext(this,null)">
+      </div>
+      <button class="continue-btn" onclick="verifyOTP()">Verify OTP</button>
+      <p style="text-align:center;font-size:12px;color:#888;margin-top:12px;">
+        Did not receive? <a href="#" style="color:#6d28d9" onclick="showStep(is phone)">Resend</a>
+      </p>
+    </div>
+
+    <div id="step-forgot" class="step">
       <button class="back-link" onclick="showStep(is password)">← Back</button>
       <div class="modal-title">Reset password</div>
       <div class="modal-sub">We will send a reset link to your email.</div>
@@ -198,147 +147,15 @@
     <div class="msg" id="auth-msg"></div>
   </div>
 
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <script src="firebase_config.js"></script>
   <script>
-    const API = 'http://localhost:8000';
-    let currentEmail = '';
-
-    function toggleTheme() {
-      const html = document.documentElement;
-      const dark = html.getAttribute('data-theme') === 'dark';
-      html.setAttribute('data-theme', dark ? 'light' : 'dark');
-      document.getElementById('theme-btn').textContent = dark ? '🌙' : '☀️';
-      localStorage.setItem('theme', dark ? 'light' : 'dark');
-    }
-
-    (function() {
-      const t = localStorage.getItem('theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', t);
-      const btn = document.getElementById('theme-btn');
-      if (btn) btn.textContent = t === 'dark' ? '☀️' : '🌙';
-      if (localStorage.getItem('tb_token')) window.location.href = 'index.html';
-    })();
-
-    function showStep(id) {
-      ['step-main','step-password','step-signup','step-phone','step-forgot'].forEach(s => {
-        document.getElementById(s).style.display = 'none';
-      });
-      document.getElementById(id).style.display = 'block';
-      hideMsg();
-    }
-
-    function backToMain() { showStep('step-main'); }
-
-    function showMsg(text, type) {
-      const el = document.getElementById('auth-msg');
-      el.textContent = text;
-      el.className = 'msg ' + type;
-    }
-
-    function hideMsg() {
-      const el = document.getElementById('auth-msg');
-      el.className = 'msg';
-    }
-
-    async function checkEmail() {
-      const email = document.getElementById('email-input').value.trim();
-      currentEmail = email;
-
-      try {
-        const res  = await fetch(API + '/auth/check-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-        const data = await res.json();
-
-        if (data.exists) {
-          document.getElementById('pwd-title').textContent = 'Welcome back';
-          document.getElementById('pwd-email').textContent = email;
-          showStep('step-password');
-          document.getElementById('pwd-input').focus();
-        } else {
-          document.getElementById('signup-email').textContent = email;
-          showStep('step-signup');
-          document.getElementById('name-input').focus();
-        }
-      } catch(e) {
-        showMsg('Cannot connect to server. Is it running?', 'error');
-      }
-    }
-
-    async function submitPassword() {
-      const password = document.getElementById('pwd-input').value;
-      const remember = document.getElementById('remember-me').checked;
-
-      try {
-        const res  = await fetch(API + '/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: currentEmail, password, remember_me: remember })
-        });
-        const data = await res.json();
-        saveAndRedirect(data);
-      } catch(e) {
-        showMsg('Cannot connect to server.', 'error');
-      }
-    }
-
-    async function submitSignup() {
-      const name = document.getElementById('name-input').value.trim();
-      const pwd  = document.getElementById('signup-pwd').value;
-      if (pwd.length < 8) { showMsg('Password must be at least 8 characters.', 'error'); return; }
-
-      try {
-        const res  = await fetch(API + '/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email: currentEmail, password: pwd })
-        });
-        const data = await res.json();
-        saveAndRedirect(data);
-      } catch(e) {
-        showMsg('Cannot connect to server.', 'error');
-      }
-    }
-
-    async function handleGoogleLogin() {
-      try {
-        const res  = await fetch(API + '/auth/google');
-        const data = await res.json();
-        if (data.url) window.location.href = data.url;
-      } catch(e) {
-        showMsg('Cannot connect to server.', 'error');
-      }
-    }
-
-    function handlePhoneLogin() { showStep('step-phone'); }
-
-    async function handleForgotPassword() {
-      document.getElementById('forgot-email').value = currentEmail;
-      showStep('step-forgot');
-    }
-
-    async function submitForgot() {
-      const email = document.getElementById('forgot-email').value.trim();
-      try {
-        await fetch(API + '/auth/forgot-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-        showMsg('Reset link sent! Check your email.', 'success');
-      } catch(e) {
-        showMsg('Cannot connect to server.', 'error');
-      }
-    }
-
-    function saveAndRedirect(data) {
-      localStorage.setItem('tb_token',   data.token);
-      localStorage.setItem('tb_user_id', data.user_id);
-      localStorage.setItem('tb_name',    data.name);
-      localStorage.setItem('tb_email',   data.email);
-      window.location.href = 'index.html';
-    }
+    firebase.initializeApp(FIREBASE_CONFIG);
+    const fbAuth = firebase.auth();
+    let recaptchaVerifier = null;
+    let confirmationResult = null;
   </script>
+  <script src="auth.js"></script>
 </body>
 </html>

@@ -6,72 +6,49 @@ let currentEmail = '';
 // -------------------------------------------------------
 // Theme
 // -------------------------------------------------------
-
 function toggleTheme() {
-  const html = document.documentElement;
+  const html  = document.documentElement;
   const isDark = html.getAttribute('data-theme') === 'dark';
   html.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  document.getElementById('theme-icon').textContent = isDark ? '🌙' : '☀️';
+  document.getElementById('theme-btn').textContent = isDark ? 'moon' : 'sun';
   localStorage.setItem('theme', isDark ? 'light' : 'dark');
 }
 
-function loadTheme() {
-  const saved = localStorage.getItem('theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  const icon = document.getElementById('theme-icon');
-  if (icon) icon.textContent = saved === 'dark' ? '☀️' : '🌙';
-}
-
-loadTheme();
+(function loadTheme() {
+  const t   = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = t === 'dark' ? 'sun' : 'moon';
+  if (localStorage.getItem('tb_token')) window.location.href = 'index.html';
+})();
 
 // -------------------------------------------------------
-// Show / Hide steps
+// Step navigation
 // -------------------------------------------------------
-
-function showStep(stepId) {
-  ['step-email', 'step-login', 'step-signup', 'step-forgot'].forEach(id => {
-    document.getElementById(id).classList.add('hidden');
-  });
-  document.getElementById(stepId).classList.remove('hidden');
-}
-
-function backToEmail() {
-  showStep('step-email');
-  hideMessage();
-}
-
-function showForgot() {
-  showStep('step-forgot');
-  const forgotInput = document.getElementById('input-forgot-email');
-  if (forgotInput) forgotInput.value = currentEmail;
-  hideMessage();
+function showStep(id) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById('step-' + id).classList.add('active');
+  hideMsg();
 }
 
 // -------------------------------------------------------
 // Messages
 // -------------------------------------------------------
-
-function showMessage(text, type = 'error') {
-  const el = document.getElementById('auth-message');
+function showMsg(text, type) {
+  const el      = document.getElementById('auth-msg');
   el.textContent = text;
-  el.className = 'auth-message ' + type;
+  el.className   = 'msg ' + type;
 }
 
-function hideMessage() {
-  const el = document.getElementById('auth-message');
-  el.className = 'auth-message hidden';
+function hideMsg() {
+  document.getElementById('auth-msg').className = 'msg';
 }
 
 // -------------------------------------------------------
-// Step 1: Check email
+// Check email (step 1)
 // -------------------------------------------------------
-
 async function checkEmail() {
-  const email = document.getElementById('input-email').value.trim();
-    showMessage('Please enter a valid email address.');
-    return;
-  }
-
+  const email = document.getElementById('email-input').value.trim();
   currentEmail = email;
 
   try {
@@ -83,125 +60,174 @@ async function checkEmail() {
     const data = await res.json();
 
     if (data.exists) {
-      // Existing user - show login
-      document.getElementById('login-email-display').textContent = email;
-      showStep('step-login');
-      document.getElementById('input-password').focus();
+      document.getElementById('pwd-email').textContent = email;
+      showStep('password');
+      document.getElementById('pwd-input').focus();
     } else {
-      // New user - show signup
-      document.getElementById('signup-email-display').textContent = email;
-      showStep('step-signup');
-      document.getElementById('input-name').focus();
+      document.getElementById('signup-email').textContent = email;
+      showStep('signup');
+      document.getElementById('name-input').focus();
     }
-    hideMessage();
-
-  } catch (err) {
-    // If endpoint not found, just show login form
-    document.getElementById('login-email-display').textContent = email;
-    showStep('step-login');
+  } catch(e) {
+    showMsg('Cannot connect to server. Is it running?', 'error');
   }
 }
 
 // -------------------------------------------------------
 // Login
 // -------------------------------------------------------
-
-async function handleLogin() {
-  const password    = document.getElementById('input-password').value;
-  const rememberMe  = document.getElementById('remember-me').checked;
-
+async function submitPassword() {
+  const password = document.getElementById('pwd-input').value;
+  const remember = document.getElementById('remember-me').checked;
 
   try {
     const res  = await fetch(API + '/auth/login', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ email: currentEmail, password, remember_me: rememberMe })
+      body:    JSON.stringify({ email: currentEmail, password, remember_me: remember })
     });
     const data = await res.json();
-
-
-    saveSession(data);
-    window.location.href = 'index.html';
-
-  } catch (err) {
-    showMessage('Could not connect to server. Is it running?');
+    saveAndRedirect(data);
+  } catch(e) {
+    showMsg('Cannot connect to server.', 'error');
   }
 }
 
 // -------------------------------------------------------
 // Signup
 // -------------------------------------------------------
-
-async function handleSignup() {
-  const name     = document.getElementById('input-name').value.trim();
-  const password = document.getElementById('input-signup-password').value;
-
-  if (password.length < 8) { showMessage('Password must be at least 8 characters.'); return; }
+async function submitSignup() {
+  const name = document.getElementById('name-input').value.trim();
+  const pwd  = document.getElementById('signup-pwd').value;
+  if (pwd.length < 8) { showMsg('Password must be at least 8 characters.', 'error'); return; }
 
   try {
     const res  = await fetch(API + '/auth/register', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ name, email: currentEmail, password })
+      body:    JSON.stringify({ name, email: currentEmail, password: pwd })
     });
     const data = await res.json();
-
-
-    saveSession(data);
-    window.location.href = 'index.html';
-
-  } catch (err) {
-    showMessage('Could not connect to server. Is it running?');
+    saveAndRedirect(data);
+  } catch(e) {
+    showMsg('Cannot connect to server.', 'error');
   }
 }
 
 // -------------------------------------------------------
 // Google login
 // -------------------------------------------------------
-
 async function handleGoogleLogin() {
   try {
     const res  = await fetch(API + '/auth/google');
     const data = await res.json();
     if (data.url) window.location.href = data.url;
-  } catch (err) {
-    showMessage('Could not connect to server.');
+  } catch(e) {
+    showMsg('Cannot connect to server.', 'error');
+  }
+}
+
+// -------------------------------------------------------
+// Phone OTP - Firebase
+// -------------------------------------------------------
+function sendPhoneOTP() {
+  const phone = document.getElementById('phone-input').value.trim();
+    showMsg('Please enter a valid phone number with country code. Example: +91 98765 43210', 'error');
+    return;
+  }
+
+  const btn     = document.getElementById('send-otp-btn');
+  btn.disabled  = true;
+  btn.textContent = 'Sending...';
+
+  // Setup reCAPTCHA
+    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+      size: 'normal',
+      callback: function() { console.log('reCAPTCHA solved'); }
+    });
+  }
+
+  fbAuth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
+    .then(function(result) {
+      window.confirmationResult = result;
+      document.getElementById('otp-sent-to').textContent = 'OTP sent to ' + phone;
+      showStep('otp');
+      document.getElementById('otp-1').focus();
+      showMsg('OTP sent successfully!', 'success');
+    })
+    .catch(function(error) {
+      showMsg('Failed to send OTP: ' + error.message, 'error');
+      btn.disabled    = false;
+      btn.textContent = 'Send OTP';
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+        window.recaptchaVerifier = null;
+      }
+    });
+}
+
+function otpNext(current, nextId) {
+  if (current.value.length === 1 && nextId) {
+    document.getElementById(nextId).focus();
+  }
+}
+
+async function verifyOTP() {
+  const otp = ['otp-1','otp-2','otp-3','otp-4','otp-5','otp-6']
+    .map(id => document.getElementById(id).value)
+    .join('');
+
+  if (otp.length < 6) { showMsg('Please enter all 6 digits.', 'error'); return; }
+
+  const btn       = document.querySelector('#step-otp .continue-btn');
+  btn.disabled    = true;
+  btn.textContent = 'Verifying...';
+
+  try {
+    const result   = await window.confirmationResult.confirm(otp);
+    const idToken  = await result.user.getIdToken();
+
+    const res  = await fetch(API + '/auth/phone', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ firebase_token: idToken })
+    });
+    const data = await res.json();
+
+    saveAndRedirect(data);
+
+  } catch(e) {
+    showMsg('Invalid OTP. Please try again.', 'error');
+    btn.disabled    = false;
+    btn.textContent = 'Verify OTP';
   }
 }
 
 // -------------------------------------------------------
 // Forgot password
 // -------------------------------------------------------
-
-async function handleForgotPassword() {
-  const email = document.getElementById('input-forgot-email').value.trim();
+async function submitForgot() {
+  const email = document.getElementById('forgot-email').value.trim();
 
   try {
-    const res  = await fetch(API + '/auth/forgot-password', {
+    await fetch(API + '/auth/forgot-password', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ email })
     });
-
-    showMessage('If that email exists, a reset link has been sent.', 'success');
-
-  } catch (err) {
-    showMessage('Could not connect to server.');
+    showMsg('Reset link sent! Check your email.', 'success');
+  } catch(e) {
+    showMsg('Cannot connect to server.', 'error');
   }
 }
 
 // -------------------------------------------------------
-// Session helpers
+// Save session and redirect
 // -------------------------------------------------------
-
-function saveSession(data) {
+function saveAndRedirect(data) {
   localStorage.setItem('tb_token',   data.token);
   localStorage.setItem('tb_user_id', data.user_id);
   localStorage.setItem('tb_name',    data.name);
-  localStorage.setItem('tb_email',   data.email);
-}
-
-// Redirect if already logged in
-if (localStorage.getItem('tb_token')) {
+  localStorage.setItem('tb_email',   data.email || '');
   window.location.href = 'index.html';
 }
