@@ -1,38 +1,27 @@
-# --- Python ---
+# Python
 venv/
 __pycache__/
 *.pyc
 *.pyo
-*.pyd
-.Python
 *.egg-info/
-dist/
-build/
 
-# --- Secrets (NEVER commit these) ---
+# Secrets
 .env
 *.env.local
-*.env.production
 
-# --- Database files ---
+# Firebase private key
+backend/firebase_key.json
+
+# Database
 *.db
 *.sqlite
-*.sqlite3
 
-# --- VS Code ---
+# VS Code
 .vscode/
-*.code-workspace
 
-# --- OS junk ---
+# OS
 .DS_Store
 Thumbs.db
-desktop.ini
 
-# --- Logs ---
+# Logs
 *.log
-logs/
-
-# --- Test artifacts ---
-.pytest_cache/
-htmlcov/
-.coverage
