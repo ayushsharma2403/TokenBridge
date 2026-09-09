@@ -11,7 +11,7 @@ from models          import (
     ChatRequest, ChatResponse,
     PromptEngineerRequest, PromptEngineerResponse,
     SessionInfo, UsageSummary,
-    RegisterRequest, LoginRequest,
+    RegisterRequest, LoginRequest, PhoneAuthRequest,
     ForgotPasswordRequest, ResetPasswordRequest, AuthResponse
 )
 from checkpoint      import Checkpoint
@@ -40,9 +40,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
     allow_headers=["*"],
 )
 
@@ -91,6 +89,14 @@ async def login(req: LoginRequest):
     return AuthResponse(**result)
 
 
+@app.post("/auth/phone", response_model=AuthResponse)
+async def auth_phone(req: PhoneAuthRequest):
+    result = login_with_phone(req.firebase_token)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return AuthResponse(**result)
+
+
 @app.get("/auth/google")
 async def google_login():
     url = get_google_login_url()
@@ -101,7 +107,8 @@ async def google_login():
 async def google_callback(code: str):
     result = await handle_google_callback(code)
     if "error" in result:
-        return RedirectResponse(f"http://localhost:5500/login.html?error={result[chr(39)+'error'+chr(39)]}")
+        err_msg = quote(str(result.get("error", "Google login failed")))
+        return RedirectResponse(f"http://localhost:5500/login.html?error={err_msg}")
     token   = result["token"]
     user_id = result["user_id"]
     name    = quote(str(result["name"]))
@@ -283,6 +290,13 @@ async def check_email_exists(req: _EmailCheck):
     c.close()
     conn.close()
     return {"exists": exists}
+
+import os
+from fastapi.staticfiles import StaticFiles
+
+frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+if os.path.exists(frontend_dir):
+    app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host=HOST, port=PORT, reload=DEBUG)

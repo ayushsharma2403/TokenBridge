@@ -27,6 +27,10 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
+class PhoneAuthRequest(BaseModel):
+    firebase_token: str
+
+
 class AuthResponse(BaseModel):
     token:   str
     user_id: int

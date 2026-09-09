@@ -1,10 +1,23 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
   <title>TokenBridge</title>
-  <link rel="stylesheet" href="style.css">
+  <script>
+    (function() {
+      var saved = localStorage.getItem('theme');
+      if (saved) {
+        document.documentElement.setAttribute('data-theme', saved);
+      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 
@@ -77,7 +90,7 @@
         <div class="vault-row">
           <span class="vault-provider">Gemini</span>
           <span class="vault-tokens" id="vault-gemini">0</span>
-          <span class="vault-cost"   id="cost-gemini">USD 0.0000.00</span>
+          <span class="vault-cost"   id="cost-gemini">USD 0.0000</span>
         </div>
       </div>
 
@@ -86,7 +99,7 @@
 
       <div style="margin-top:auto; display:flex; flex-direction:column; gap:8px; padding-top:12px;">
         <button class="sidebar-btn" onclick="newChat()">➕ New Chat</button>
-        <button class="sidebar-btn" onclick="toggleTheme()">🌙 Toggle Theme</button>
+        <button class="sidebar-btn" id="theme-btn-sidebar" onclick="toggleTheme()">🌙 Toggle Theme</button>
         <button class="sidebar-btn danger" onclick="handleLogout()">🚪 Logout</button>
       </div>
 
@@ -104,7 +117,7 @@
         <div class="header-actions">
           <div class="icon-btn" onclick="togglePromptPanel()" title="Prompt Engineer">✨</div>
           <div class="icon-btn" onclick="clearChat()"          title="Clear chat">🗑️</div>
-          <div class="icon-btn" onclick="toggleTheme()"        title="Toggle theme">🌙</div>
+          <div class="icon-btn" id="theme-btn-header" onclick="toggleTheme()" title="Toggle theme">🌙</div>
         </div>
       </div>
 

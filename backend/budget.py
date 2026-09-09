@@ -25,7 +25,7 @@ class Budget:
         conn = connect()
         c = conn.cursor()
         c.execute(
-            "SELECT SUM(tokens_used) FROM usage_log WHERE session_id = ?",
+            "SELECT SUM(tokens_used) FROM usage_log WHERE session_id = %s",
             (self.session_id,)
         )
         row = c.fetchone()
@@ -56,7 +56,7 @@ class Budget:
         conn = connect()
         c = conn.cursor()
         c.execute(
-            "INSERT INTO usage_log (session_id, tokens_used, call_type, logged_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO usage_log (session_id, tokens_used, call_type, logged_at) VALUES (%s, %s, %s, %s)",
             (self.session_id, tokens, call_type, datetime.now().isoformat())
         )
         conn.commit()

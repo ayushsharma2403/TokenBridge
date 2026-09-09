@@ -14,7 +14,7 @@ DB_CONFIG = {
 # --- AI Models ---
 CLAUDE_MODEL  = "claude-haiku-4-5-20251001"
 OPENAI_MODEL  = "gpt-4o-mini"
-GEMINI_MODEL  = "gemini-1.5-flash"
+GEMINI_MODEL  = "gemini-3.6-flash"
 
 # --- Optimizer settings ---
 COMPRESS_AT     = 2500

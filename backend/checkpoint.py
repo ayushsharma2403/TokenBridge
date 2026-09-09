@@ -29,14 +29,13 @@ class Checkpoint:
         c = conn.cursor()
         now = datetime.now().isoformat()
 
-        # INSERT OR REPLACE handles both new sessions and updates
         c.execute("""
             INSERT INTO sessions (session_id, messages, provider, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(session_id) DO UPDATE SET
-                messages   = excluded.messages,
-                provider   = excluded.provider,
-                updated_at = excluded.updated_at
+            VALUES (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                messages   = VALUES(messages),
+                provider   = VALUES(provider),
+                updated_at = VALUES(updated_at)
         """, (
             self.session_id,
             json.dumps(messages),   # list → JSON string for storage
@@ -58,10 +57,10 @@ class Checkpoint:
         Returns an empty list if no checkpoint exists yet (fresh session).
         """
         conn = connect()
-        c = conn.cursor()
+        c = conn.cursor(dictionary=True)
 
         c.execute(
-            "SELECT messages FROM sessions WHERE session_id = ?",
+            "SELECT messages FROM sessions WHERE session_id = %s",
             (self.session_id,)
         )
         row = c.fetchone()
@@ -85,7 +84,7 @@ class Checkpoint:
         conn = connect()
         c = conn.cursor()
         c.execute(
-            "DELETE FROM sessions WHERE session_id = ?",
+            "DELETE FROM sessions WHERE session_id = %s",
             (self.session_id,)
         )
         conn.commit()
@@ -97,9 +96,9 @@ class Checkpoint:
         to show the user when their last session was saved.
         """
         conn = connect()
-        c = conn.cursor()
+        c = conn.cursor(dictionary=True)
         c.execute(
-            "SELECT provider, created_at, updated_at FROM sessions WHERE session_id = ?",
+            "SELECT provider, created_at, updated_at FROM sessions WHERE session_id = %s",
             (self.session_id,)
         )
         row = c.fetchone()
