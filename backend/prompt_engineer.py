@@ -1,5 +1,7 @@
 import anthropic
 from openai import OpenAI
+import google.generativeai as genai
+from config import CLAUDE_MODEL, OPENAI_MODEL, GEMINI_MODEL
 
 META_PROMPT = """You are a prompt engineering expert.
 Rewrite the user message to be specific, concise, and structured.
@@ -10,6 +12,8 @@ Return ONLY the rewritten prompt. No explanation."""
 def detect_provider(api_key: str) -> str:
     if api_key.startswith("sk-ant-"):
         return "claude"
+    elif api_key.startswith("AIza"):
+        return "gemini"
     return "openai"
 
 
@@ -19,7 +23,7 @@ def engineer_prompt(raw_prompt: str, api_key: str) -> dict:
     if provider == "claude":
         client   = anthropic.Anthropic(api_key=api_key)
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model=CLAUDE_MODEL,
             max_tokens=300,
             system=META_PROMPT,
             messages=[{"role": "user", "content": raw_prompt}]
@@ -27,10 +31,22 @@ def engineer_prompt(raw_prompt: str, api_key: str) -> dict:
         optimized   = response.content[0].text.strip()
         tokens_used = response.usage.input_tokens + response.usage.output_tokens
 
+    elif provider == "gemini":
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(
+            model_name=GEMINI_MODEL,
+            system_instruction=META_PROMPT
+        )
+        response = model.generate_content(raw_prompt)
+        optimized = response.text.strip()
+        tokens_used = 0
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            tokens_used = (getattr(response.usage_metadata, "prompt_token_count", 0) or 0) + (getattr(response.usage_metadata, "candidates_token_count", 0) or 0)
+
     else:
         client   = OpenAI(api_key=api_key)
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=OPENAI_MODEL,
             max_tokens=300,
             messages=[
                 {"role": "system", "content": META_PROMPT},

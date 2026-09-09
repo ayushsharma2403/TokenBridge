@@ -6,9 +6,15 @@ var currentEmail = "";
 function toggleTheme() {
   var html = document.documentElement;
   var isDark = html.getAttribute("data-theme") === "dark";
-  html.setAttribute("data-theme", isDark ? "light" : "dark");
-  document.getElementById("theme-btn").textContent = isDark ? "sun" : "moon";
-  localStorage.setItem("theme", isDark ? "light" : "dark");
+  var newTheme = isDark ? "light" : "dark";
+  html.setAttribute("data-theme", newTheme);
+  localStorage.setItem("theme", newTheme);
+  updateAuthThemeIcon(newTheme);
+}
+
+function updateAuthThemeIcon(theme) {
+  var btn = document.getElementById("theme-btn");
+  if (btn) btn.textContent = theme === "dark" ? "🌙" : "☀️";
 }
 
 function showStep(id) {
@@ -201,9 +207,11 @@ function submitForgot() {
 
 // Init on page load
 (function() {
-  var t = localStorage.getItem("theme") || "dark";
+  var t = localStorage.getItem("theme");
+  if (!t) {
+    t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark";
+  }
   document.documentElement.setAttribute("data-theme", t);
-  var btn = document.getElementById("theme-btn");
-  if (btn) btn.textContent = t === "dark" ? "sun" : "moon";
+  updateAuthThemeIcon(t);
   if (localStorage.getItem("tb_token")) window.location.href = "index.html";
 })();

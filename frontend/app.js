@@ -65,13 +65,27 @@ function loadUserInfo() {
 function toggleTheme() {
   var html   = document.documentElement;
   var isDark = html.getAttribute('data-theme') === 'dark';
-  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+  var newTheme = isDark ? 'light' : 'dark';
+  html.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+  updateThemeIcons(newTheme);
 }
 
 function loadTheme() {
-  var saved = localStorage.getItem('theme') || 'dark';
+  var saved = localStorage.getItem('theme');
+  if (!saved) {
+    saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+  }
   document.documentElement.setAttribute('data-theme', saved);
+  updateThemeIcons(saved);
+}
+
+function updateThemeIcons(theme) {
+  var isDark = theme === 'dark';
+  var headerBtn = document.getElementById('theme-btn-header');
+  var sidebarBtn = document.getElementById('theme-btn-sidebar');
+  if (headerBtn) headerBtn.textContent = isDark ? '🌙' : '☀️';
+  if (sidebarBtn) sidebarBtn.textContent = isDark ? '🌙 Toggle Theme' : '☀️ Toggle Theme';
 }
 
 // -------------------------------------------------------
