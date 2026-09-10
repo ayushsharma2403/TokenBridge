@@ -11,7 +11,7 @@ def detect_provider(api_key: str, provider: str = None) -> str:
         return provider.strip().lower()
     if api_key.startswith("sk-ant-"):
         return "claude"
-    elif api_key.startswith("AIza"):
+    elif api_key.startswith("AIza") or api_key.startswith("AQ."):
         return "gemini"
     else:
         return "openai"
