@@ -1,47 +1,37 @@
-"""
-firebase_auth.py
-
-Handles Firebase Phone Authentication.
-Verifies the ID token sent from the frontend after phone OTP verification.
-"""
-
 import firebase_admin
 from firebase_admin import credentials, auth
 from database import connect
 from auth import create_token
 import os
 
-# Initialize Firebase Admin SDK once
-cred_path = os.path.join(os.path.dirname(__file__), "firebase_key.json")
+cred_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "firebase_key.json")
 if not firebase_admin._apps:
     cred = credentials.Certificate(cred_path)
     firebase_admin.initialize_app(cred)
 
 
 def verify_firebase_token(id_token: str) -> dict:
-    """
-    Verifies the Firebase ID token sent from the frontend.
-    Returns user info if valid, error if not.
-    """
     try:
-        decoded = auth.verify_id_token(id_token)
+        decoded = auth.verify_id_token(id_token, check_revoked=False)
         return {
             "uid":   decoded.get("uid"),
             "phone": decoded.get("phone_number"),
             "valid": True
         }
+    except auth.RevokedIdTokenError:
+        return {"valid": False, "error": "Token revoked."}
+    except auth.ExpiredIdTokenError:
+        return {"valid": False, "error": "Token expired."}
+    except auth.InvalidIdTokenError as e:
+        return {"valid": False, "error": f"Invalid token: {str(e)}"}
     except Exception as e:
         return {"valid": False, "error": str(e)}
 
 
 def login_with_phone(id_token: str) -> dict:
-    """
-    Verifies Firebase token, finds or creates user in MySQL,
-    returns our own JWT token.
-    """
     verified = verify_firebase_token(id_token)
     if not verified["valid"]:
-        return {"error": "Invalid Firebase token."}
+        return {"error": verified["error"]}
 
     phone = verified["phone"]
     uid   = verified["uid"]
@@ -52,7 +42,6 @@ def login_with_phone(id_token: str) -> dict:
     conn = connect()
     c    = conn.cursor()
 
-    # Check if user exists by phone (stored in google_id column)
     c.execute(
         "SELECT id, name, email FROM users WHERE google_id = %s",
         (uid,)
@@ -64,12 +53,11 @@ def login_with_phone(id_token: str) -> dict:
         name    = existing[1]
         email   = existing[2] or ""
     else:
-        # Create new user with phone number as name
         name  = phone
         email = ""
         c.execute(
-            "INSERT INTO users (name, email, google_id, password_hash) VALUES (%s, %s, %s, %s)",
-            (name, email, uid, None)
+            "INSERT INTO users (name, email, google_id) VALUES (%s, %s, %s)",
+            (name, email, uid)
         )
         conn.commit()
         user_id = c.lastrowid
