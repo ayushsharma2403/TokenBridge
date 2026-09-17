@@ -115,7 +115,7 @@
           <h3 id="chat-title">New Chat</h3>
         </div>
         <div class="header-actions">
-          <div class="icon-btn" onclick="togglePromptPanel()" title="Prompt Engineer">&#10024;</div>
+          <div class="icon-btn" id="btn-prompt-toggle" onclick="togglePromptPanel()" title="Prompt Engineer">&#10024;</div>
           <div class="icon-btn" onclick="clearChat()" title="Clear chat">&#128465;</div>
           <div class="icon-btn" id="theme-btn-header" onclick="toggleTheme()" title="Toggle theme">&#127769;</div>
         </div>
@@ -132,7 +132,7 @@
       <div class="prompt-panel glass hidden" id="prompt-panel">
         <div class="prompt-panel-header" onclick="togglePromptPanel()">
           <h4>&#10024; Prompt Engineer <span style="font-size:11px;color:var(--text-sub);font-weight:400;">— optimize before sending</span></h4>
-          <span style="color:var(--text-sub); font-size:12px;">&#9660;</span>
+          <span class="prompt-arrow-btn" id="prompt-arrow-btn" title="Hide Prompt Engineer">&#9660;</span>
         </div>
         <div class="prompt-panel-body">
           <textarea id="raw-prompt" placeholder="Type your raw prompt here..." rows="2"></textarea>
@@ -147,7 +147,8 @@
       <div class="input-area">
         <div class="input-wrap">
           <input type="file" id="file-upload" accept=".pdf,.docx,.doc,.txt,.csv,.tsv,.md,.markdown,.json,.py,.js,.jsx,.ts,.tsx,.html,.htm,.css,.scss,.sql,.yaml,.yml,.xml,.toml,.ini,.env,.sh,.bat,.ps1,.c,.cpp,.h,.java,.cs,.go,.rs,.php,.rb,.swift,.kt,.r,.dart,.png,.jpg,.jpeg,.webp" style="display:none" onchange="handleFileUpload(event)">
-          <button onclick="document.getElementById('file-upload').click()" title="Upload & Convert to Markdown (.md)" style="border:none;background:none;font-size:20px;cursor:pointer;color:var(--text-sub);flex-shrink:0;padding:4px;">&#128206;</button>
+          <button type="button" onclick="document.getElementById('file-upload').click()" title="Upload & Convert to Markdown (.md)" style="border:none;background:none;font-size:20px;cursor:pointer;color:var(--text-sub);flex-shrink:0;padding:4px;">&#128206;</button>
+          <button type="button" id="btn-prompt-input" onclick="togglePromptPanel()" title="Prompt Engineer (✨)" style="border:none;background:none;font-size:18px;cursor:pointer;color:var(--text-sub);flex-shrink:0;padding:4px;transition:var(--transition);">&#10024;</button>
           <textarea
             id="message-input"
             placeholder="Type a message or drop files here... (Ctrl+Enter to send)"

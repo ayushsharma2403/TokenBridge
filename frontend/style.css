@@ -56,8 +56,12 @@
   --shadow-sm:    0 4px 20px rgba(31, 38, 135, 0.05);
 }
 
-/* --- Reset --- */
+/* --- Reset & Utilities --- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+.hidden {
+  display: none !important;
+}
 
 html { font-size: 16px; scroll-behavior: smooth; }
 
@@ -690,6 +694,17 @@ body {
   border: 1px solid var(--glass-border);
   flex-shrink: 0;
   box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+  animation: promptPanelIn 0.22s ease-out;
+}
+
+@keyframes promptPanelIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.prompt-panel.hidden {
+  display: none !important;
 }
 
 .prompt-panel-header {
@@ -698,9 +713,32 @@ body {
   justify-content: space-between;
   margin-bottom: 12px;
   cursor: pointer;
+  user-select: none;
 }
 
 .prompt-panel-header h4 { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 6px; }
+
+.prompt-arrow-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  color: var(--text-sub);
+  font-size: 11px;
+  cursor: pointer;
+  transition: var(--transition);
+  background: transparent;
+  border: none;
+}
+
+.prompt-panel-header:hover .prompt-arrow-btn,
+.prompt-arrow-btn:hover {
+  color: var(--text);
+  background: var(--hover);
+  transform: translateY(1px);
+}
 
 .prompt-panel-body { display: flex; flex-direction: column; gap: 10px; }
 .prompt-panel-body textarea {
