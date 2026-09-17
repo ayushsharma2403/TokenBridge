@@ -406,7 +406,19 @@ function updateVault() {
 // -------------------------------------------------------
 function togglePromptPanel() {
   var panel = document.getElementById('prompt-panel');
-  if (panel) { panel.classList.toggle('hidden'); }
+  if (!panel) return;
+  var nowHidden = panel.classList.toggle('hidden');
+  var headerBtn = document.getElementById('btn-prompt-toggle');
+  var inputBtn  = document.getElementById('btn-prompt-input');
+  if (!nowHidden) {
+    var raw = document.getElementById('raw-prompt');
+    if (raw) { raw.focus(); }
+    if (headerBtn) { headerBtn.style.color = 'var(--accent)'; }
+    if (inputBtn)  { inputBtn.style.color = 'var(--accent)'; }
+  } else {
+    if (headerBtn) { headerBtn.style.color = ''; }
+    if (inputBtn)  { inputBtn.style.color = ''; }
+  }
 }
 
 function optimizePrompt() {
