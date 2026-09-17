@@ -28,6 +28,7 @@ window.onload = function() {
   loadSessions();
   updateVault();
   setupDragAndDrop();
+  setupPromptEngineerListeners();
 
   document.getElementById('session-id-display').textContent = sessionId;
 };
@@ -402,23 +403,71 @@ function updateVault() {
 }
 
 // -------------------------------------------------------
-// Prompt Engineer
 // -------------------------------------------------------
-function togglePromptPanel() {
+// Prompt Engineer Panel (Show / Hide / Optimize)
+// -------------------------------------------------------
+function setupPromptEngineerListeners() {
+  var arrowBtn = document.getElementById('prompt-arrow-btn');
+  if (arrowBtn) {
+    arrowBtn.addEventListener('click', function(e) {
+      closePromptPanel(e);
+    });
+  }
+  var closeBtn = document.getElementById('prompt-close-btn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', function(e) {
+      closePromptPanel(e);
+    });
+  }
+}
+
+function togglePromptPanel(event) {
+  if (event && event.stopPropagation) {
+    event.stopPropagation();
+  }
   var panel = document.getElementById('prompt-panel');
   if (!panel) return;
-  var nowHidden = panel.classList.toggle('hidden');
+
+  var isHidden = panel.classList.contains('hidden') || panel.style.display === 'none';
+
+  if (isHidden) {
+    openPromptPanel();
+  } else {
+    closePromptPanel(event);
+  }
+}
+
+function openPromptPanel() {
+  var panel = document.getElementById('prompt-panel');
+  var body  = document.getElementById('prompt-panel-body');
+  if (!panel) return;
+
+  panel.classList.remove('hidden');
+  panel.style.display = 'block';
+  if (body) { body.style.display = 'flex'; }
+
+  var raw = document.getElementById('raw-prompt');
+  if (raw) { raw.focus(); }
+  updatePromptButtons(true);
+}
+
+function closePromptPanel(event) {
+  if (event && event.stopPropagation) {
+    event.stopPropagation();
+  }
+  var panel = document.getElementById('prompt-panel');
+  if (!panel) return;
+
+  panel.classList.add('hidden');
+  panel.style.display = 'none';
+  updatePromptButtons(false);
+}
+
+function updatePromptButtons(active) {
   var headerBtn = document.getElementById('btn-prompt-toggle');
   var inputBtn  = document.getElementById('btn-prompt-input');
-  if (!nowHidden) {
-    var raw = document.getElementById('raw-prompt');
-    if (raw) { raw.focus(); }
-    if (headerBtn) { headerBtn.style.color = 'var(--accent)'; }
-    if (inputBtn)  { inputBtn.style.color = 'var(--accent)'; }
-  } else {
-    if (headerBtn) { headerBtn.style.color = ''; }
-    if (inputBtn)  { inputBtn.style.color = ''; }
-  }
+  if (headerBtn) { headerBtn.style.color = active ? 'var(--accent)' : ''; }
+  if (inputBtn)  { inputBtn.style.color  = active ? 'var(--accent)' : ''; }
 }
 
 function optimizePrompt() {
@@ -440,9 +489,16 @@ function optimizePrompt() {
   .then(function(data) {
     if (data.optimized) {
       var resultEl = document.getElementById('optimized-result');
-      resultEl.textContent = data.optimized;
-      resultEl.classList.remove('hidden');
-      document.getElementById('btn-use-prompt').classList.remove('hidden');
+      var btnUse   = document.getElementById('btn-use-prompt');
+      if (resultEl) {
+        resultEl.textContent   = data.optimized;
+        resultEl.style.display = 'block';
+        resultEl.classList.remove('hidden');
+      }
+      if (btnUse) {
+        btnUse.style.display = 'block';
+        btnUse.classList.remove('hidden');
+      }
     } else {
       alert('Optimization failed: ' + (data.detail || 'Unknown error'));
     }
@@ -455,10 +511,25 @@ function optimizePrompt() {
 }
 
 function useOptimizedPrompt() {
-  var optimized = document.getElementById('optimized-result').textContent;
-  document.getElementById('message-input').value = optimized;
-  togglePromptPanel();
-  document.getElementById('message-input').focus();
+  var resultEl  = document.getElementById('optimized-result');
+  var btnUse    = document.getElementById('btn-use-prompt');
+  var optimized = resultEl ? resultEl.textContent : '';
+  if (optimized) {
+    var input = document.getElementById('message-input');
+    input.value = optimized;
+    autoResize(input);
+    input.focus();
+  }
+  // Clear and hide result
+  if (resultEl) {
+    resultEl.textContent = '';
+    resultEl.style.display = 'none';
+  }
+  if (btnUse) {
+    btnUse.style.display = 'none';
+  }
+  // Close prompt panel
+  closePromptPanel();
 }
 
 // -------------------------------------------------------

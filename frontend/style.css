@@ -712,7 +712,6 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
-  cursor: pointer;
   user-select: none;
 }
 
@@ -766,6 +765,10 @@ body {
   font-size: 13px;
   color: var(--text);
   line-height: 1.5;
+}
+
+.optimized-result:empty {
+  display: none !important;
 }
 
 .prompt-actions { display: flex; gap: 10px; }

@@ -50,6 +50,17 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def no_cache_static_middleware(request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if path == "/" or any(path.endswith(ext) for ext in [".html", ".js", ".css"]):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+
 @app.on_event("startup")
 async def on_startup():
     setup()

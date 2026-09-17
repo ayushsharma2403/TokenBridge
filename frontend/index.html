@@ -17,7 +17,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3.1">
 </head>
 <body>
 
@@ -129,18 +129,23 @@
         </div>
       </div>
 
-      <div class="prompt-panel glass hidden" id="prompt-panel">
-        <div class="prompt-panel-header" onclick="togglePromptPanel()">
-          <h4>&#10024; Prompt Engineer <span style="font-size:11px;color:var(--text-sub);font-weight:400;">— optimize before sending</span></h4>
-          <span class="prompt-arrow-btn" id="prompt-arrow-btn" title="Hide Prompt Engineer">&#9660;</span>
+      <div class="prompt-panel glass hidden" id="prompt-panel" style="display:none;">
+        <div class="prompt-panel-header">
+          <div style="display:flex; align-items:center; gap:6px; cursor:pointer; flex:1;" onclick="togglePromptPanel(event)">
+            <h4>&#10024; Prompt Engineer <span style="font-size:11px;color:var(--text-sub);font-weight:400;">— optimize before sending</span></h4>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <button type="button" class="prompt-arrow-btn" id="prompt-arrow-btn" onclick="closePromptPanel(event)" title="Hide Prompt Engineer">&#9660;</button>
+            <button type="button" class="prompt-arrow-btn" id="prompt-close-btn" onclick="closePromptPanel(event)" title="Close Prompt Engineer">&#10005;</button>
+          </div>
         </div>
-        <div class="prompt-panel-body">
-          <textarea id="raw-prompt" placeholder="Type your raw prompt here..." rows="2"></textarea>
+        <div class="prompt-panel-body" id="prompt-panel-body">
+          <textarea id="raw-prompt" placeholder="Type your raw prompt here..." rows="2" onkeydown="if(event.key==='Escape'){closePromptPanel(event);}"></textarea>
           <div class="prompt-actions">
             <button class="btn-optimize" onclick="optimizePrompt()">&#9889; Optimize</button>
-            <button class="btn-use hidden" id="btn-use-prompt" onclick="useOptimizedPrompt()">Use this &#8594;</button>
+            <button class="btn-use hidden" id="btn-use-prompt" onclick="useOptimizedPrompt()" style="display:none;">Use this &#8594;</button>
           </div>
-          <div class="optimized-result hidden" id="optimized-result"></div>
+          <div class="optimized-result hidden" id="optimized-result" style="display:none;"></div>
         </div>
       </div>
 
@@ -165,6 +170,6 @@
     </main>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=3.1"></script>
 </body>
 </html>
