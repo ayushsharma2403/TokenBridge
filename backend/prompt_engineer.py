@@ -35,10 +35,31 @@ def engineer_prompt(raw_prompt: str, api_key: str) -> dict:
 
     elif provider == "gemini":
         genai.configure(api_key=api_key)
-        model    = genai.GenerativeModel(GEMINI_MODEL, system_instruction=META_PROMPT)
-        response = model.generate_content(raw_prompt)
-        optimized   = response.text.strip()
-        tokens_used = response.usage_metadata.total_token_count
+        models_to_try = [GEMINI_MODEL, "gemini-3.6-flash", "gemini-flash-latest"]
+        candidates = []
+        for m in models_to_try:
+            clean = (m or "").replace("models/", "").strip()
+            if clean and clean not in ["gemini-1.5-flash", "gemini-2.5-flash"] and clean not in candidates:
+                candidates.append(clean)
+        if not candidates:
+            candidates = ["gemini-3.6-flash", "gemini-flash-latest"]
+
+        last_error = None
+        for model_name in candidates:
+            try:
+                model = genai.GenerativeModel(model_name, system_instruction=META_PROMPT)
+                response = model.generate_content(raw_prompt)
+                optimized = response.text.strip()
+                tokens_used = getattr(response.usage_metadata, "total_token_count", 0) or 0
+                break
+            except Exception as e:
+                last_error = e
+                err_msg = str(e)
+                if "404" in err_msg or "not found" in err_msg.lower() or "not supported" in err_msg.lower():
+                    continue
+                raise e
+        else:
+            raise last_error
 
     else:
         from openai import OpenAI

@@ -5,7 +5,7 @@ Handles: registration, login, JWT tokens, password reset
 """
 
 import os
-import random
+import secrets
 import string
 from datetime import datetime, timedelta
 from typing import Optional
@@ -66,7 +66,7 @@ def setup_users_table():
         CREATE TABLE IF NOT EXISTS users (
             id             INT AUTO_INCREMENT PRIMARY KEY,
             name           VARCHAR(100) NOT NULL,
-            email          VARCHAR(150) NOT NULL UNIQUE,
+            email          VARCHAR(150) NULL UNIQUE,
             password_hash  VARCHAR(255),
             google_id      VARCHAR(100),
             reset_token    VARCHAR(100),
@@ -178,7 +178,7 @@ def generate_reset_token(email: str) -> Optional[str]:
         conn.close()
         return None
 
-    reset_token   = "".join(random.choices(string.ascii_letters + string.digits, k=32))
+    reset_token   = secrets.token_urlsafe(32)
     reset_expires = datetime.utcnow() + timedelta(hours=1)
 
     c.execute(

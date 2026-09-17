@@ -17,9 +17,9 @@ import anthropic
 from typing import Tuple
 
 
-# --- Config ---
-# Summarization uses the cheapest Claude model (fastest + cheapest)
-SUMMARIZER_MODEL    = "claude-haiku-4-5-20251001"
+from config import CLAUDE_MODEL
+# Summarization uses the configured Claude model
+SUMMARIZER_MODEL    = CLAUDE_MODEL
 
 # How many tokens before we start compressing (tune this to your taste)
 COMPRESSION_TRIGGER = 2500
@@ -92,14 +92,33 @@ This summary will replace the original messages, so be specific — not vague.
 Write the bullet points now (no preamble):"""
 
     try:
-        client = anthropic.Anthropic(api_key=api_key)
-        response = client.messages.create(
-            model=SUMMARIZER_MODEL,
-            max_tokens=350,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        summary = response.content[0].text.strip()
-        print(f"[Optimizer] Summarized {len(old_messages)} messages → ~{len(summary)} chars.")
+        if api_key.startswith("AIza") or api_key.startswith("AQ."):
+            import google.generativeai as genai
+            from config import GEMINI_MODEL
+            genai.configure(api_key=api_key)
+            model_name = GEMINI_MODEL if GEMINI_MODEL not in ["gemini-1.5-flash", "gemini-2.5-flash"] else "gemini-3.6-flash"
+            model = genai.GenerativeModel(model_name)
+            res = model.generate_content(prompt)
+            summary = res.text.strip()
+        elif api_key.startswith("sk-") and not api_key.startswith("sk-ant-"):
+            from openai import OpenAI
+            from config import OPENAI_MODEL
+            client = OpenAI(api_key=api_key)
+            res = client.chat.completions.create(
+                model=OPENAI_MODEL,
+                max_tokens=350,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            summary = res.choices[0].message.content.strip()
+        else:
+            client = anthropic.Anthropic(api_key=api_key)
+            response = client.messages.create(
+                model=SUMMARIZER_MODEL,
+                max_tokens=350,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            summary = response.content[0].text.strip()
+        print(f"[Optimizer] Summarized {len(old_messages)} messages -> ~{len(summary)} chars.")
 
     except Exception as e:
         # Fallback: generic note so we don't crash
@@ -154,6 +173,6 @@ def optimize(messages: list, api_key: str) -> Tuple[list, int]:
     saved     = token_count - new_count
     pct       = round((saved / token_count) * 100) if token_count > 0 else 0
 
-    print(f"[Optimizer] Done. {token_count} → {new_count} tokens (saved {saved}, {pct}% reduction).")
+    print(f"[Optimizer] Done. {token_count} -> {new_count} tokens (saved {saved}, {pct}% reduction).")
 
     return compressed, new_count
