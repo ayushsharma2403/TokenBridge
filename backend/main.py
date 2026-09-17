@@ -1,6 +1,7 @@
+import os
 import uvicorn
-from fastapi import FastAPI, HTTPException, Header
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form
+from fastapi.responses import RedirectResponse, Response
 from urllib.parse import quote
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
@@ -28,6 +29,7 @@ from auth            import (
 from oauth           import get_google_login_url, handle_google_callback
 from email_service   import send_reset_email
 from firebase_auth   import login_with_phone
+from pydantic        import BaseModel
 
 
 app = FastAPI(
@@ -36,10 +38,11 @@ app = FastAPI(
     version="3.0.0"
 )
 
+# Fix: allow_credentials must be False when allow_origins=["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -122,7 +125,8 @@ async def google_callback(code: str):
 async def forgot_password(req: ForgotPasswordRequest):
     reset_token = generate_reset_token(req.email)
     if reset_token:
-        conn = __import__("database").connect()
+        from database import connect
+        conn = connect()
         c    = conn.cursor()
         c.execute("SELECT name FROM users WHERE email = %s", (req.email,))
         row  = c.fetchone()
@@ -146,6 +150,50 @@ async def get_me(authorization: Optional[str] = Header(None)):
     return get_current_user(authorization)
 
 
+class EmailCheck(BaseModel):
+    email: str
+
+@app.post("/auth/check-email")
+async def check_email_exists(req: EmailCheck):
+    from database import connect
+    conn = connect()
+    c    = conn.cursor()
+    c.execute("SELECT id FROM users WHERE email = %s", (req.email,))
+    exists = c.fetchone() is not None
+    c.close()
+    conn.close()
+    return {"exists": exists}
+
+
+# -------------------------------------------------------
+# File Upload
+# -------------------------------------------------------
+
+@app.options("/upload")
+async def upload_options():
+    return Response(
+        headers={
+            "Access-Control-Allow-Origin":  "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+@app.post("/upload")
+async def upload_file(
+    file:          UploadFile        = File(...),
+    api_key:       str               = Form(default=""),
+    authorization: Optional[str]     = Header(None)
+):
+    get_current_user(authorization)
+    from file_converter import convert_file
+    file_bytes = await file.read()
+    result     = convert_file(file_bytes, file.filename, api_key)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
 # -------------------------------------------------------
 # Prompt Engineering
 # -------------------------------------------------------
@@ -167,7 +215,7 @@ async def prompt_engineer(req: PromptEngineerRequest):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
-    user       = get_current_user(authorization)
+    get_current_user(authorization)
     checkpoint = Checkpoint(req.session_id)
     budget     = Budget(req.session_id, req.token_budget)
     history    = checkpoint.load()
@@ -274,31 +322,14 @@ async def tokenvault_global(authorization: Optional[str] = Header(None)):
     return global_stats()
 
 
-
-from pydantic import BaseModel as _BaseModel
-
-class _EmailCheck(_BaseModel):
-    email: str
-
-@app.post("/auth/check-email")
-async def check_email_exists(req: _EmailCheck):
-    from database import connect
-    conn = connect()
-    c    = conn.cursor()
-    c.execute("SELECT id FROM users WHERE email = %s", (req.email,))
-    exists = c.fetchone() is not None
-    c.close()
-    conn.close()
-    return {"exists": exists}
-
-import os
 from fastapi.staticfiles import StaticFiles
+import os
 
-frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
-if os.path.exists(frontend_dir):
-    app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+if os.path.exists(frontend_path):
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host=HOST, port=PORT, reload=DEBUG)
-
 

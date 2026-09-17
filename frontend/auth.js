@@ -1,6 +1,6 @@
 // auth.js - TokenBridge Login Logic
 
-var API = "http://localhost:8000";
+var API = "";
 var currentEmail = "";
 
 function toggleTheme() {

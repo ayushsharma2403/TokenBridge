@@ -1,6 +1,7 @@
 // app.js - TokenBridge Main Chat Logic
+// API is empty string because frontend and backend run on same port (8000)
 
-var API = 'http://localhost:8000';
+var API = '';
 var sessionId = generateId();
 var messages  = [];
 var isLoading = false;
@@ -10,7 +11,6 @@ var sessions  = [];
 // Init
 // -------------------------------------------------------
 window.onload = function() {
-  // Handle Google OAuth redirect
   var params   = new URLSearchParams(window.location.search);
   var urlToken = params.get('token');
   if (urlToken) {
@@ -44,7 +44,7 @@ function loadUserInfo() {
 
   var token = localStorage.getItem('tb_token');
   if (token) {
-    fetch(API + '/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+    fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
     .then(function(res) { return res.json(); })
     .then(function(data) {
       if (data.user_id) {
@@ -63,12 +63,24 @@ function loadUserInfo() {
 // Theme
 // -------------------------------------------------------
 function toggleTheme() {
-  var html   = document.documentElement;
-  var isDark = html.getAttribute('data-theme') === 'dark';
+  var html     = document.documentElement;
+  var isDark   = html.getAttribute('data-theme') === 'dark';
   var newTheme = isDark ? 'light' : 'dark';
   html.setAttribute('data-theme', newTheme);
   localStorage.setItem('theme', newTheme);
   updateThemeIcons(newTheme);
+}
+
+function updateThemeIcons(theme) {
+  var isDark = theme === 'dark';
+  var icon   = isDark ? 'Light Mode' : 'Dark Mode';
+  var btns   = document.querySelectorAll('.icon-btn[onclick*="toggleTheme"]');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].title = icon;
+    btns[i].innerHTML = isDark ? '&#9728;' : '&#127769;';
+  }
+  var sbtn = document.getElementById('theme-btn-sidebar');
+  if (sbtn) { sbtn.innerHTML = (isDark ? '&#9728;' : '&#127769;') + ' Toggle Theme'; }
 }
 
 function loadTheme() {
@@ -77,15 +89,7 @@ function loadTheme() {
     saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
   }
   document.documentElement.setAttribute('data-theme', saved);
-  updateThemeIcons(saved);
-}
-
-function updateThemeIcons(theme) {
-  var isDark = theme === 'dark';
-  var headerBtn = document.getElementById('theme-btn-header');
-  var sidebarBtn = document.getElementById('theme-btn-sidebar');
-  if (headerBtn) headerBtn.textContent = isDark ? '🌙' : '☀️';
-  if (sidebarBtn) sidebarBtn.textContent = isDark ? '🌙 Toggle Theme' : '☀️ Toggle Theme';
+  setTimeout(function() { updateThemeIcons(saved); }, 100);
 }
 
 // -------------------------------------------------------
@@ -106,7 +110,14 @@ function closeSidebar() {
 // -------------------------------------------------------
 function toggleApiKey() {
   var input = document.getElementById('api-key-input');
-  input.type = input.type === 'password' ? 'text' : 'password';
+  var btn   = document.querySelector('.eye-btn');
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (btn) { btn.innerHTML = '&#128064;'; }
+  } else {
+    input.type = 'password';
+    if (btn) { btn.innerHTML = '&#128065;'; }
+  }
 }
 
 function onProviderChange() {
@@ -159,8 +170,7 @@ function renderSessions() {
     var div = document.createElement('div');
     div.className = 'session-item' + (s.id === sessionId ? ' active' : '');
     div.innerHTML = '<span class="session-dot"></span>' + (s.title || 'Chat');
-    div.setAttribute('data-id', s.id);
-    div.onclick = (function(id) { return function() { loadSession(id); }; })(s.id);
+    div.onclick   = (function(id) { return function() { loadSession(id); }; })(s.id);
     list.appendChild(div);
   }
 }
@@ -186,7 +196,7 @@ function newChat() {
   sessionId = generateId();
   messages  = [];
   var area  = document.getElementById('messages-area');
-  area.innerHTML = '<div class="empty-state" id="empty-state"><div class="empty-icon">⚡</div><h3>Start a conversation</h3><p>Select a provider, paste your API key, and start chatting.</p></div>';
+  area.innerHTML = '<div class="empty-state" id="empty-state"><div class="empty-icon">&#9889;</div><h3>Start a conversation</h3><p>Select a provider, paste your API key, and start chatting.</p></div>';
   document.getElementById('chat-title').textContent          = 'New Chat';
   document.getElementById('session-id-display').textContent = sessionId;
   renderSessions();
@@ -216,7 +226,7 @@ function appendMessage(role, content, scroll) {
 
   var avatar = document.createElement('div');
   avatar.className   = 'message-avatar';
-  avatar.textContent = role === 'user' ? '👤' : '⚡';
+  avatar.textContent = role === 'user' ? 'U' : 'AI';
 
   var bubble = document.createElement('div');
   bubble.className   = 'message-bubble';
@@ -234,11 +244,11 @@ function showTyping() {
   var area = document.getElementById('messages-area');
   var wrap = document.createElement('div');
   wrap.className = 'message-wrap ai';
-  wrap.id = 'typing-indicator';
+  wrap.id        = 'typing-indicator';
 
   var avatar = document.createElement('div');
   avatar.className   = 'message-avatar';
-  avatar.textContent = '⚡';
+  avatar.textContent = 'AI';
 
   var bubble = document.createElement('div');
   bubble.className = 'message-bubble';
@@ -274,6 +284,9 @@ function sendMessage() {
   appendMessage('user', text);
   input.value        = '';
   input.style.height = 'auto';
+
+  var preview = document.getElementById('file-preview');
+  if (preview) { preview.style.display = 'none'; }
 
   isLoading = true;
   document.getElementById('send-btn').disabled = true;
@@ -336,7 +349,10 @@ function updateTokenMeter(remaining, budget) {
 // -------------------------------------------------------
 function updateVaultRow(provider, tokensUsed) {
   var el = document.getElementById('vault-' + provider);
-  if (el) { el.textContent = (parseInt(el.textContent.replace(/,/g, '')) + tokensUsed).toLocaleString(); }
+  if (el) {
+    var current = parseInt(el.textContent.replace(/,/g, '')) || 0;
+    el.textContent = (current + tokensUsed).toLocaleString();
+  }
 }
 
 function updateVault() {
@@ -394,7 +410,7 @@ function optimizePrompt() {
   })
   .catch(function() { alert('Could not reach server.'); })
   .finally(function() {
-    btn.textContent = '⚡ Optimize';
+    btn.textContent = 'Optimize';
     btn.disabled    = false;
   });
 }
@@ -404,6 +420,46 @@ function useOptimizedPrompt() {
   document.getElementById('message-input').value = optimized;
   togglePromptPanel();
   document.getElementById('message-input').focus();
+}
+
+// -------------------------------------------------------
+// File Upload
+// -------------------------------------------------------
+function handleFileUpload(event) {
+  var file    = event.target.files[0];
+  if (!file) { return; }
+
+  var apiKey  = getApiKey();
+  var preview = document.getElementById('file-preview');
+  preview.style.display = 'block';
+  preview.textContent   = 'Converting ' + file.name + ' to markdown...';
+
+  var formData = new FormData();
+  formData.append('file',    file);
+  formData.append('api_key', apiKey || '');
+
+  var token = localStorage.getItem('tb_token');
+
+  fetch('/upload', {
+    method:  'POST',
+    headers: { 'Authorization': 'Bearer ' + token },
+    body:    formData
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.error || data.detail) {
+      preview.textContent = 'Error: ' + (data.error || data.detail);
+      return;
+    }
+    var summary = '[File: ' + data.filename + ' | ' + data.reduction + ']\n\n' + data.markdown;
+    document.getElementById('message-input').value = summary;
+    autoResize(document.getElementById('message-input'));
+    preview.textContent = 'Ready: ' + data.filename + ' (' + data.reduction + ')';
+    event.target.value  = '';
+  })
+  .catch(function() {
+    preview.textContent = 'Failed to convert file.';
+  });
 }
 
 // -------------------------------------------------------
@@ -446,5 +502,5 @@ function authFetch(path, options) {
   var token = localStorage.getItem('tb_token');
   options.headers = options.headers || {};
   if (token) { options.headers['Authorization'] = 'Bearer ' + token; }
-  return fetch(API + path, options);
+  return fetch(path, options);
 }
