@@ -1,11 +1,11 @@
 // app.js - TokenBridge Main Chat Logic
-// API is empty string because frontend and backend run on same port (8000)
-
-var API = '';
+// Dynamic API URL: Empty string when on port 8000, localhost:8000 when served on other ports (e.g. 5500)
+var API = (window.location.port === "8000") ? "" : "http://localhost:8000";
 var sessionId = generateId();
 var messages  = [];
 var isLoading = false;
 var sessions  = [];
+var currentUploadedFile = null;
 
 // -------------------------------------------------------
 // Init
@@ -24,8 +24,10 @@ window.onload = function() {
   checkAuth();
   loadTheme();
   loadUserInfo();
+  onProviderChange();
   loadSessions();
   updateVault();
+  setupDragAndDrop();
 
   document.getElementById('session-id-display').textContent = sessionId;
 };
@@ -44,7 +46,7 @@ function loadUserInfo() {
 
   var token = localStorage.getItem('tb_token');
   if (token) {
-    fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+    authFetch('/auth/me')
     .then(function(res) { return res.json(); })
     .then(function(data) {
       if (data.user_id) {
@@ -215,6 +217,25 @@ function renderAllMessages() {
   area.scrollTop = area.scrollHeight;
 }
 
+function formatContent(text) {
+  if (!text) return '';
+  var escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  escaped = escaped.replace(/```([\s\S]*?)```/g, function(match, p1) {
+    return '<pre><code>' + p1.trim() + '</code></pre>';
+  });
+  escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
+  escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  escaped = escaped.replace(/^\s*[-*]\s+(.*)$/gm, '&bull; $1');
+  escaped = escaped.replace(/\n/g, '<br>');
+  return escaped;
+}
+
 function appendMessage(role, content, scroll) {
   if (scroll === undefined) { scroll = true; }
   var empty = document.getElementById('empty-state');
@@ -230,7 +251,11 @@ function appendMessage(role, content, scroll) {
 
   var bubble = document.createElement('div');
   bubble.className   = 'message-bubble';
-  bubble.textContent = content;
+  if (role === 'ai') {
+    bubble.innerHTML = formatContent(content);
+  } else {
+    bubble.textContent = content;
+  }
 
   wrap.appendChild(avatar);
   wrap.appendChild(bubble);
@@ -348,7 +373,8 @@ function updateTokenMeter(remaining, budget) {
 // TokenVault
 // -------------------------------------------------------
 function updateVaultRow(provider, tokensUsed) {
-  var el = document.getElementById('vault-' + provider);
+  var p = (provider || '').toLowerCase();
+  var el = document.getElementById('vault-' + p);
   if (el) {
     var current = parseInt(el.textContent.replace(/,/g, '')) || 0;
     el.textContent = (current + tokensUsed).toLocaleString();
@@ -364,8 +390,9 @@ function updateVault() {
       for (var i = 0; i < providers.length; i++) {
         var p      = providers[i];
         var stats  = data.all_time[p];
-        var tokEl  = document.getElementById('vault-' + p);
-        var costEl = document.getElementById('cost-' + p);
+        var pLower = p.toLowerCase();
+        var tokEl  = document.getElementById('vault-' + pLower);
+        var costEl = document.getElementById('cost-' + pLower);
         if (tokEl)  { tokEl.textContent  = (stats.total_tokens || 0).toLocaleString(); }
         if (costEl) { costEl.textContent = 'USD ' + (stats.cost_usd || 0).toFixed(4); }
       }
@@ -423,43 +450,187 @@ function useOptimizedPrompt() {
 }
 
 // -------------------------------------------------------
-// File Upload
+// File Upload & Markdown Conversion
 // -------------------------------------------------------
 function handleFileUpload(event) {
-  var file    = event.target.files[0];
+  var file = event.target.files[0];
   if (!file) { return; }
+  processFileUpload(file);
+  event.target.value = '';
+}
 
-  var apiKey  = getApiKey();
-  var preview = document.getElementById('file-preview');
-  preview.style.display = 'block';
-  preview.textContent   = 'Converting ' + file.name + ' to markdown...';
+function processFileUpload(file) {
+  var token = localStorage.getItem('tb_token');
+  if (!token) {
+    showFilePreview('error', 'Please log in to upload and convert files.');
+    return;
+  }
 
+  showFilePreview('converting', { filename: file.name });
+
+  var apiKey = getApiKey();
   var formData = new FormData();
-  formData.append('file',    file);
+  formData.append('file', file);
   formData.append('api_key', apiKey || '');
 
-  var token = localStorage.getItem('tb_token');
-
-  fetch('/upload', {
-    method:  'POST',
-    headers: { 'Authorization': 'Bearer ' + token },
-    body:    formData
+  authFetch('/upload', {
+    method: 'POST',
+    body: formData
   })
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
-    if (data.error || data.detail) {
-      preview.textContent = 'Error: ' + (data.error || data.detail);
+  .then(function(res) {
+    return res.json().then(function(data) {
+      return { ok: res.ok, status: res.status, data: data };
+    });
+  })
+  .then(function(result) {
+    if (!result.ok || result.data.error || result.data.detail) {
+      var err = result.data.error || result.data.detail || 'Conversion failed';
+      if (typeof err === 'object') { err = JSON.stringify(err); }
+      showFilePreview('error', err);
       return;
     }
-    var summary = '[File: ' + data.filename + ' | ' + data.reduction + ']\n\n' + data.markdown;
-    document.getElementById('message-input').value = summary;
-    autoResize(document.getElementById('message-input'));
-    preview.textContent = 'Ready: ' + data.filename + ' (' + data.reduction + ')';
-    event.target.value  = '';
+
+    currentUploadedFile = result.data;
+    showFilePreview('ready', result.data);
+
+    // Insert or prepend to message input
+    var input = document.getElementById('message-input');
+    var fileHeader = '[File: ' + result.data.filename + ' | ' + result.data.reduction + ']\n\n';
+    if (input.value.trim()) {
+      input.value = input.value + '\n\n' + fileHeader + result.data.markdown;
+    } else {
+      input.value = fileHeader + result.data.markdown;
+    }
+    autoResize(input);
   })
   .catch(function() {
-    preview.textContent = 'Failed to convert file.';
+    showFilePreview('error', 'Network error: Could not connect to backend.');
   });
+}
+
+function showFilePreview(state, data) {
+  var preview = document.getElementById('file-preview');
+  if (!preview) return;
+
+  if (state === 'converting') {
+    preview.style.display = 'flex';
+    preview.className = 'file-preview-card';
+    preview.innerHTML = 
+      '<div class="file-info-group">' +
+        '<span class="converting-spinner"></span>' +
+        '<span class="file-title">Converting <strong>' + escapeHtml(data.filename) + '</strong> to Markdown (.md)...</span>' +
+      '</div>';
+  } else if (state === 'ready') {
+    preview.style.display = 'flex';
+    preview.className = 'file-preview-card';
+    preview.innerHTML = 
+      '<div class="file-info-group">' +
+        '<span class="file-icon">&#128196;</span>' +
+        '<div class="file-names">' +
+          '<span class="file-title">' + escapeHtml(data.filename) + ' &#8594; <strong>' + escapeHtml(data.md_filename || (data.filename + '.md')) + '</strong></span>' +
+          '<span class="file-badge">' + escapeHtml(data.reduction) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="file-actions-group">' +
+        '<button class="btn-file-action btn-download" onclick="downloadCurrentMd()" title="Download converted Markdown file">&#11015; Download .md</button>' +
+        '<button class="btn-file-action" id="btn-copy-md" onclick="copyCurrentMd()" title="Copy Markdown to clipboard">&#128203; Copy</button>' +
+        '<button class="btn-file-action btn-remove" onclick="clearUploadedFile()" title="Dismiss">&#10005;</button>' +
+      '</div>';
+  } else if (state === 'error') {
+    preview.style.display = 'flex';
+    preview.className = 'file-preview-card error';
+    preview.innerHTML = 
+      '<div class="file-info-group">' +
+        '<span class="file-icon">&#9888;</span>' +
+        '<span class="file-title">Error: ' + escapeHtml(data) + '</span>' +
+      '</div>' +
+      '<div class="file-actions-group">' +
+        '<button class="btn-file-action btn-remove" onclick="clearUploadedFile()" title="Dismiss">&#10005;</button>' +
+      '</div>';
+  }
+}
+
+function downloadCurrentMd() {
+  if (!currentUploadedFile || !currentUploadedFile.markdown) return;
+  var filename = currentUploadedFile.md_filename || 'converted.md';
+  var blob = new Blob([currentUploadedFile.markdown], { type: 'text/markdown;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function copyCurrentMd() {
+  if (!currentUploadedFile || !currentUploadedFile.markdown) return;
+  navigator.clipboard.writeText(currentUploadedFile.markdown).then(function() {
+    var btn = document.getElementById('btn-copy-md');
+    if (btn) {
+      var orig = btn.innerHTML;
+      btn.innerHTML = '&#10003; Copied!';
+      setTimeout(function() { btn.innerHTML = orig; }, 2000);
+    }
+  }).catch(function() {
+    alert('Failed to copy to clipboard.');
+  });
+}
+
+function clearUploadedFile() {
+  currentUploadedFile = null;
+  var preview = document.getElementById('file-preview');
+  if (preview) {
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+  }
+  var input = document.getElementById('file-upload');
+  if (input) { input.value = ''; }
+}
+
+function setupDragAndDrop() {
+  var inputWrap = document.querySelector('.input-wrap');
+  if (!inputWrap) return;
+
+  ['dragenter', 'dragover'].forEach(function(eventName) {
+    window.addEventListener(eventName, function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }, false);
+    inputWrap.addEventListener(eventName, function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      inputWrap.classList.add('drag-over');
+    }, false);
+  });
+
+  ['dragleave', 'dragend'].forEach(function(eventName) {
+    inputWrap.addEventListener(eventName, function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      inputWrap.classList.remove('drag-over');
+    }, false);
+  });
+
+  inputWrap.addEventListener('drop', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    inputWrap.classList.remove('drag-over');
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFileUpload(e.dataTransfer.files[0]);
+    }
+  }, false);
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 // -------------------------------------------------------
@@ -502,5 +673,7 @@ function authFetch(path, options) {
   var token = localStorage.getItem('tb_token');
   options.headers = options.headers || {};
   if (token) { options.headers['Authorization'] = 'Bearer ' + token; }
-  return fetch(path, options);
+  var url = path.startsWith('http') ? path : (API + path);
+  return fetch(url, options);
 }
+

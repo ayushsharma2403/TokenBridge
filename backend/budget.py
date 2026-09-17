@@ -25,14 +25,13 @@ class Budget:
         conn = connect()
         c = conn.cursor()
         c.execute(
-            "SELECT SUM(tokens_used) FROM usage_log WHERE session_id = %s",
+            "SELECT COALESCE(SUM(tokens_used), 0) FROM usage_log WHERE session_id = %s",
             (self.session_id,)
         )
         row = c.fetchone()
         conn.close()
 
-        # SUM returns None if there are no rows yet
-        return row[0] if row[0] else 0
+        return int(row[0]) if (row and row[0] is not None) else 0
 
     def remaining(self) -> int:
         return max(0, self.total - self.used_so_far())
@@ -48,7 +47,7 @@ class Budget:
     # Logging
     # ------------------------------------------------------------------
 
-    def log_usage(self, tokens: int, call_type: str = "chat") -> None:
+    def log_usage(self, tokens: int, call_type: str = "chat", user_id: int = None) -> None:
         """
         Records how many tokens an API call used.
         call_type can be 'chat' or 'summarize' (optimizer calls are logged too).
@@ -56,8 +55,8 @@ class Budget:
         conn = connect()
         c = conn.cursor()
         c.execute(
-            "INSERT INTO usage_log (session_id, tokens_used, call_type, logged_at) VALUES (%s, %s, %s, %s)",
-            (self.session_id, tokens, call_type, datetime.now().isoformat())
+            "INSERT INTO usage_log (session_id, user_id, tokens_used, call_type, logged_at) VALUES (%s, %s, %s, %s, %s)",
+            (self.session_id, user_id, tokens, call_type, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         )
         conn.commit()
         conn.close()

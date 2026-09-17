@@ -1,12 +1,14 @@
 import os
 import uvicorn
 from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import RedirectResponse, Response, FileResponse
 from urllib.parse import quote
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
-from config          import HOST, PORT, DEBUG, RESPONSE_BUFFER
+frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+
+from config          import HOST, PORT, DEBUG, RESPONSE_BUFFER, APP_URL
 from database        import setup
 from models          import (
     ChatRequest, ChatResponse,
@@ -67,6 +69,14 @@ def get_current_user(authorization: Optional[str] = None) -> dict:
 
 @app.get("/")
 async def root():
+    index_file = os.path.join(frontend_path, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    return {"status": "ok", "app": "TokenBridge", "version": "3.0.0"}
+
+
+@app.get("/health")
+async def health():
     return {"status": "ok", "app": "TokenBridge", "version": "3.0.0"}
 
 
@@ -111,13 +121,13 @@ async def google_callback(code: str):
     result = await handle_google_callback(code)
     if "error" in result:
         err_msg = quote(str(result.get("error", "Google login failed")))
-        return RedirectResponse(f"http://localhost:5500/login.html?error={err_msg}")
+        return RedirectResponse(f"{APP_URL}/login.html?error={err_msg}")
     token   = result["token"]
     user_id = result["user_id"]
     name    = quote(str(result["name"]))
     email   = quote(str(result["email"]))
     return RedirectResponse(
-        f"http://localhost:5500/index.html?token={token}&user_id={user_id}&name={name}&email={email}"
+        f"{APP_URL}/index.html?token={token}&user_id={user_id}&name={name}&email={email}"
     )
 
 
@@ -169,16 +179,6 @@ async def check_email_exists(req: EmailCheck):
 # File Upload
 # -------------------------------------------------------
 
-@app.options("/upload")
-async def upload_options():
-    return Response(
-        headers={
-            "Access-Control-Allow-Origin":  "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
-
 @app.post("/upload")
 async def upload_file(
     file:          UploadFile        = File(...),
@@ -187,6 +187,8 @@ async def upload_file(
 ):
     get_current_user(authorization)
     from file_converter import convert_file
+    if not file or not file.filename:
+        raise HTTPException(status_code=400, detail="No file selected for upload.")
     file_bytes = await file.read()
     result     = convert_file(file_bytes, file.filename, api_key)
     if "error" in result:
@@ -215,7 +217,7 @@ async def prompt_engineer(req: PromptEngineerRequest):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
-    get_current_user(authorization)
+    user = get_current_user(authorization)
     checkpoint = Checkpoint(req.session_id)
     budget     = Budget(req.session_id, req.token_budget)
     history    = checkpoint.load()
@@ -251,10 +253,12 @@ async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
     total_tokens = input_tokens + output_tokens
     history.append({"role": "assistant", "content": reply})
     checkpoint.save(history, provider)
-    budget.log_usage(total_tokens, call_type="chat")
+    user_id = user.get("user_id") if isinstance(user, dict) else None
+    budget.log_usage(total_tokens, call_type="chat", user_id=user_id)
 
     log(
         session_id=req.session_id,
+        user_id=user_id,
         provider=provider,
         input_tokens=input_tokens,
         output_tokens=output_tokens,

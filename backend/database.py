@@ -18,7 +18,7 @@ def setup():
         CREATE TABLE IF NOT EXISTS users (
             id             INT AUTO_INCREMENT PRIMARY KEY,
             name           VARCHAR(100) NOT NULL,
-            email          VARCHAR(150) NOT NULL UNIQUE,
+            email          VARCHAR(150) NULL UNIQUE,
             password_hash  VARCHAR(255),
             google_id      VARCHAR(100),
             reset_token    VARCHAR(100),
@@ -27,6 +27,20 @@ def setup():
             is_active      BOOLEAN  DEFAULT TRUE
         )
     """)
+    try:
+        c.execute("ALTER TABLE users MODIFY email VARCHAR(150) NULL")
+    except Exception:
+        pass
+
+    try:
+        c.execute("ALTER TABLE usage_log ADD COLUMN user_id INT AFTER session_id")
+    except Exception:
+        pass
+
+    try:
+        c.execute("ALTER TABLE tokenvault ADD COLUMN user_id INT AFTER session_id")
+    except Exception:
+        pass
 
     c.execute("""
         CREATE TABLE IF NOT EXISTS sessions (

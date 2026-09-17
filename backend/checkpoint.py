@@ -27,7 +27,7 @@ class Checkpoint:
         """
         conn = connect()
         c = conn.cursor()
-        now = datetime.now().isoformat()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         c.execute("""
             INSERT INTO sessions (session_id, messages, provider, created_at, updated_at)

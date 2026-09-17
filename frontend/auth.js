@@ -1,6 +1,6 @@
 // auth.js - TokenBridge Login Logic
 
-var API = "";
+var API = (window.location.port === "8000") ? "" : "http://localhost:8000";
 var currentEmail = "";
 
 function toggleTheme() {
@@ -155,10 +155,21 @@ function sendPhoneOTP() {
 }
 
 function otpNext(current, nextId) {
-  if (current.value.length === 1 && nextId) {
+  if (current.value.length >= 1 && nextId) {
     document.getElementById(nextId).focus();
   }
 }
+
+document.addEventListener("DOMContentLoaded", function() {
+  var inputs = document.querySelectorAll(".otp-input");
+  inputs.forEach(function(input, idx) {
+    input.addEventListener("keydown", function(e) {
+      if (e.key === "Backspace" && !input.value && idx > 0) {
+        inputs[idx - 1].focus();
+      }
+    });
+  });
+});
 
 function verifyOTP() {
   var ids = ["otp-1","otp-2","otp-3","otp-4","otp-5","otp-6"];

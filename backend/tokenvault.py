@@ -19,7 +19,8 @@ COSTS = {
 
 def log(session_id: str, provider: str, input_tokens: int,
         output_tokens: int, call_type: str = "chat",
-        tokens_saved: int = 0, saving_source: str = "none") -> float:
+        tokens_saved: int = 0, saving_source: str = "none",
+        user_id: int = None) -> float:
     """Logs one API call. Returns cost in USD."""
 
     total    = input_tokens + output_tokens
@@ -33,12 +34,12 @@ def log(session_id: str, provider: str, input_tokens: int,
     c    = conn.cursor()
     c.execute("""
         INSERT INTO tokenvault
-            (session_id, provider, call_type, input_tokens, output_tokens,
+            (session_id, user_id, provider, call_type, input_tokens, output_tokens,
              total_tokens, cost_usd, tokens_saved, saving_source, logged_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """, (session_id, provider, call_type, input_tokens, output_tokens,
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (session_id, user_id, provider, call_type, input_tokens, output_tokens,
              total, cost_usd, tokens_saved, saving_source,
-             datetime.now().isoformat()))
+             datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     conn.commit()
     c.close()
     conn.close()
@@ -51,11 +52,11 @@ def session_stats(session_id: str) -> dict:
     c    = conn.cursor()
     c.execute("""
         SELECT provider,
-               SUM(input_tokens),
-               SUM(output_tokens),
-               SUM(total_tokens),
-               SUM(cost_usd),
-               SUM(tokens_saved),
+               COALESCE(SUM(input_tokens), 0),
+               COALESCE(SUM(output_tokens), 0),
+               COALESCE(SUM(total_tokens), 0),
+               COALESCE(SUM(cost_usd), 0.0),
+               COALESCE(SUM(tokens_saved), 0),
                COUNT(*)
         FROM tokenvault
         WHERE session_id = %s
@@ -71,28 +72,34 @@ def session_stats(session_id: str) -> dict:
     grand_saved        = 0
 
     for row in rows:
+        inp   = int(row[1] or 0)
+        out   = int(row[2] or 0)
+        tot   = int(row[3] or 0)
+        cst   = round(float(row[4] or 0.0), 6)
+        svd   = int(row[5] or 0)
+        calls = int(row[6] or 0)
         by_provider[row[0]] = {
-            "input_tokens":  row[1],
-            "output_tokens": row[2],
-            "total_tokens":  row[3],
-            "cost_usd":      round(row[4], 6),
-            "tokens_saved":  row[5],
-            "calls":         row[6]
+            "input_tokens":  inp,
+            "output_tokens": out,
+            "total_tokens":  tot,
+            "cost_usd":      cst,
+            "tokens_saved":  svd,
+            "calls":         calls
         }
-        grand_tokens += row[3]
-        grand_cost   += row[4]
-        grand_saved  += row[5]
+        grand_tokens += tot
+        grand_cost   += cst
+        grand_saved  += svd
 
     total = grand_tokens + grand_saved
     efficiency = f"{round((grand_saved / total) * 100)}% saved" if total > 0 else "N/A"
 
     return {
-        "session_id":    session_id,
-        "by_provider":   by_provider,
-        "total_tokens":  grand_tokens,
+        "session_id":     session_id,
+        "by_provider":    by_provider,
+        "total_tokens":   grand_tokens,
         "total_cost_usd": round(grand_cost, 6),
-        "tokens_saved":  grand_saved,
-        "efficiency":    efficiency
+        "tokens_saved":   grand_saved,
+        "efficiency":     efficiency
     }
 
 
@@ -102,9 +109,9 @@ def global_stats() -> dict:
     c    = conn.cursor()
     c.execute("""
         SELECT provider,
-               SUM(total_tokens),
-               SUM(cost_usd),
-               SUM(tokens_saved),
+               COALESCE(SUM(total_tokens), 0),
+               COALESCE(SUM(cost_usd), 0.0),
+               COALESCE(SUM(tokens_saved), 0),
                COUNT(*)
         FROM tokenvault
         GROUP BY provider
@@ -117,9 +124,9 @@ def global_stats() -> dict:
     result = {}
     for row in rows:
         result[row[0]] = {
-            "total_tokens": row[1],
-            "cost_usd":     round(row[2], 6),
-            "tokens_saved": row[3],
-            "total_calls":  row[4]
+            "total_tokens": int(row[1] or 0),
+            "cost_usd":     round(float(row[2] or 0.0), 6),
+            "tokens_saved": int(row[3] or 0),
+            "total_calls":  int(row[4] or 0)
         }
     return {"all_time": result}

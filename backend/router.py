@@ -47,20 +47,51 @@ async def send_to_openai(messages: list, api_key: str) -> Tuple[str, int, int]:
 
 async def send_to_gemini(messages: list, api_key: str) -> Tuple[str, int, int]:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(GEMINI_MODEL)
 
-    # Convert messages to Gemini format
+    # Convert messages to Gemini format, ensuring strictly alternating turns
     history = []
     for msg in messages[:-1]:
-        role = "user" if msg["role"] == "user" else "model"
-        history.append({"role": role, "parts": [msg["content"]]})
+        role = "user" if msg.get("role") == "user" else "model"
+        content = str(msg.get("content", ""))
+        if history and history[-1]["role"] == role:
+            history[-1]["parts"][0] += "\n\n" + content
+        else:
+            history.append({"role": role, "parts": [content]})
 
-    chat     = model.start_chat(history=history)
-    response = chat.send_message(messages[-1]["content"])
+    # Gemini history must start with a 'user' turn
+    if history and history[0]["role"] != "user":
+        history.insert(0, {"role": "user", "parts": ["Context:"]})
 
-    input_tokens  = response.usage_metadata.prompt_token_count
-    output_tokens = response.usage_metadata.candidates_token_count
-    return response.text, input_tokens, output_tokens
+    last_content = str(messages[-1].get("content", "")) if messages else ""
+
+    # Prioritize configured model, then known working fallbacks
+    models_to_try = [GEMINI_MODEL, "gemini-3.6-flash", "gemini-flash-latest"]
+    candidates = []
+    for m in models_to_try:
+        clean = (m or "").replace("models/", "").strip()
+        if clean and clean not in ["gemini-1.5-flash", "gemini-2.5-flash"] and clean not in candidates:
+            candidates.append(clean)
+    if not candidates:
+        candidates = ["gemini-3.6-flash", "gemini-flash-latest"]
+
+    last_error = None
+    for model_name in candidates:
+        try:
+            model = genai.GenerativeModel(model_name)
+            chat = model.start_chat(history=history)
+            response = chat.send_message(last_content)
+
+            input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0) or 0
+            output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0) or 0
+            return response.text, input_tokens, output_tokens
+        except Exception as e:
+            last_error = e
+            err_msg = str(e)
+            if "404" in err_msg or "not found" in err_msg.lower() or "not supported" in err_msg.lower():
+                continue
+            raise e
+
+    raise last_error
 
 
 async def call_api(messages: list, api_key: str, provider: str) -> Tuple[str, int, int]:

@@ -57,7 +57,7 @@ def login_with_phone(id_token: str) -> dict:
         email = ""
         c.execute(
             "INSERT INTO users (name, email, google_id) VALUES (%s, %s, %s)",
-            (name, email, uid)
+            (name, None, uid)
         )
         conn.commit()
         user_id = c.lastrowid
