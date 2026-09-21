@@ -390,49 +390,91 @@ function renderAllMessages() {
   area.scrollTop = area.scrollHeight;
 }
 
+function normalizeMarkdown(str) {
+  if (!str) return '';
+  var s = String(str);
+  // Unescape any escaped newlines
+  s = s.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
+
+  // Separate headings stuck to text without preceding newline: (e.g. 'standards). #### 3. Title')
+  s = s.replace(/([^\n])\s+(#{1,6}\s+)/g, function(match, p1, p2) {
+    return p1 + '\n\n' + p2;
+  });
+
+  // Separate horizontal rules stuck to text: (e.g. 'text. --- ### Title')
+  s = s.replace(/([^\n])\s+---\s+/g, function(match, p1) {
+    return p1 + '\n\n---\n\n';
+  });
+
+  // Separate numbered lists stuck to text: (e.g. 'critical: 1. **Game Engines:**')
+  s = s.replace(/([^\n])\s+(\b\d+\.\s+\*\*)/g, function(match, p1, p2) {
+    return p1 + '\n\n' + p2;
+  });
+
+  // Separate bullet points stuck to text or another bullet: (e.g. 'includes: * **Containers:**')
+  s = s.replace(/([^\n])\s+(\*\s+\*\*)/g, function(match, p1, p2) {
+    return p1 + '\n* **';
+  });
+
+  // Separate sub-bullet items: (e.g. '* Powers engines... * Dominates AAA...')
+  s = s.replace(/([^\n])\s+(\*\s+[A-Z])/g, function(match, p1, p2) {
+    return p1 + '\n  * ' + p2.replace(/^\*\s+/, '');
+  });
+
+  return s;
+}
+
 function formatContent(text) {
   if (!text) return '';
+
+  var preparedText = normalizeMarkdown(text);
 
   // If marked.js is loaded, use full markdown rendering
   if (typeof marked !== 'undefined') {
     try {
-      marked.setOptions({
-        gfm: true,
-        breaks: true,
-        headerIds: false,
-        mangle: false
-      });
-      var rawHtml = marked.parse(text);
-      if (typeof DOMPurify !== 'undefined') {
-        return DOMPurify.sanitize(rawHtml);
+      if (typeof marked.setOptions === 'function') {
+        marked.setOptions({
+          gfm: true,
+          breaks: true
+        });
       }
-      return rawHtml;
+      var parseFn = (typeof marked.parse === 'function') ? marked.parse : (typeof marked === 'function' ? marked : null);
+      if (parseFn) {
+        var rawHtml = parseFn(preparedText);
+        if (typeof DOMPurify !== 'undefined' && typeof DOMPurify.sanitize === 'function') {
+          return DOMPurify.sanitize(rawHtml);
+        }
+        return rawHtml;
+      }
     } catch (e) {
-      console.warn('marked parse error:', e);
+      console.warn('marked parse error, falling back:', e);
     }
   }
 
   // Fallback markdown parser if CDN is unreachable
-  var escaped = text
+  var escaped = preparedText
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 
+  // Code blocks first
+  escaped = escaped.replace(/```([a-zA-Z0-9_\-+#]*)\n?([\s\S]*?)```/g, function(match, lang, code) {
+    var langTag = lang ? '<div class="code-header"><span class="code-lang">' + lang + '</span></div>' : '';
+    return '<div class="code-block-wrapper">' + langTag + '<pre><code>' + code.trim() + '</code></pre></div>';
+  });
+
   // Headings
+  escaped = escaped.replace(/^###### (.*$)/gim, '<h6>$1</h6>');
+  escaped = escaped.replace(/^##### (.*$)/gim, '<h5>$1</h5>');
+  escaped = escaped.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
   escaped = escaped.replace(/^### (.*$)/gim, '<h3>$1</h3>');
   escaped = escaped.replace(/^## (.*$)/gim, '<h2>$1</h2>');
   escaped = escaped.replace(/^# (.*$)/gim, '<h1>$1</h1>');
 
   // Horizontal Rule
   escaped = escaped.replace(/^---$/gim, '<hr>');
-
-  // Code blocks
-  escaped = escaped.replace(/```([a-zA-Z0-9_\-+#]*)\n?([\s\S]*?)```/g, function(match, lang, code) {
-    var langTag = lang ? '<div class="code-header"><span class="code-lang">' + lang + '</span></div>' : '';
-    return '<div class="code-block-wrapper">' + langTag + '<pre><code>' + code.trim() + '</code></pre></div>';
-  });
 
   // Inline code & bold & lists
   escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
