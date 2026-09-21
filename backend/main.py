@@ -235,7 +235,9 @@ async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
     history.append({"role": "user", "content": req.message})
 
     efficiency = (req.efficiency or "medium").lower()
-    if efficiency not in ["low", "medium", "hard"]:
+    if efficiency == "hard":
+        efficiency = "high"
+    if efficiency not in ["low", "medium", "high"]:
         efficiency = "medium"
 
     tokens_before               = sum(len(str(m["content"])) for m in history) // 4

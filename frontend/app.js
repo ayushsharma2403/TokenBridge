@@ -236,7 +236,8 @@ function toggleEfficiencyMenu(e) {
 function setEfficiency(level, shouldPersist) {
   if (shouldPersist === undefined) { shouldPersist = true; }
   level = (level || 'medium').toLowerCase();
-  if (['low', 'medium', 'hard'].indexOf(level) === -1) {
+  if (level === 'hard') { level = 'high'; }
+  if (['low', 'medium', 'high'].indexOf(level) === -1) {
     level = 'medium';
   }
 
@@ -261,7 +262,8 @@ function setEfficiency(level, shouldPersist) {
   // Update active state in menu items
   var options = document.querySelectorAll('.efficiency-option');
   for (var i = 0; i < options.length; i++) {
-    if (options[i].getAttribute('data-level') === level) {
+    var optLevel = options[i].getAttribute('data-level');
+    if (optLevel === level || (level === 'high' && optLevel === 'hard')) {
       options[i].classList.add('active');
     } else {
       options[i].classList.remove('active');
