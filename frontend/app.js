@@ -6,6 +6,7 @@ var messages  = [];
 var isLoading = false;
 var sessions  = [];
 var currentUploadedFile = null;
+var currentEfficiency   = localStorage.getItem('tb_efficiency') || 'medium';
 
 // -------------------------------------------------------
 // Init
@@ -27,6 +28,8 @@ window.onload = function() {
   onProviderChange();
   loadSessions();
   updateVault();
+  loadConfigSectionState();
+  initEfficiency();
   setupDragAndDrop();
   setupPromptEngineerListeners();
 
@@ -96,16 +99,50 @@ function loadTheme() {
 }
 
 // -------------------------------------------------------
-// Sidebar
+// Sidebar (Gemini-style open/close/toggle)
 // -------------------------------------------------------
+function toggleSidebar() {
+  var sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  if (window.innerWidth <= 768) {
+    if (sidebar.classList.contains('open')) {
+      closeSidebar();
+    } else {
+      openSidebar();
+    }
+  } else {
+    if (sidebar.classList.contains('closed')) {
+      openSidebar();
+    } else {
+      closeSidebar();
+    }
+  }
+}
+
 function openSidebar() {
-  document.getElementById('sidebar').classList.add('open');
-  document.getElementById('sidebar-overlay').classList.add('open');
+  var sidebar = document.getElementById('sidebar');
+  var overlay = document.getElementById('sidebar-overlay');
+  if (sidebar) {
+    sidebar.classList.add('open');
+    sidebar.classList.remove('closed');
+  }
+  if (overlay && window.innerWidth <= 768) {
+    overlay.classList.add('open');
+  }
 }
 
 function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebar-overlay').classList.remove('open');
+  var sidebar = document.getElementById('sidebar');
+  var overlay = document.getElementById('sidebar-overlay');
+  if (sidebar) {
+    sidebar.classList.remove('open');
+    if (window.innerWidth > 768) {
+      sidebar.classList.add('closed');
+    }
+  }
+  if (overlay) {
+    overlay.classList.remove('open');
+  }
 }
 
 // -------------------------------------------------------
@@ -163,18 +200,150 @@ function saveSessionToList() {
   }
 }
 
+// -------------------------------------------------------
+// Efficiency Mode (Low, Medium, Hard)
+// -------------------------------------------------------
+function initEfficiency() {
+  setEfficiency(currentEfficiency, false);
+
+  // Close efficiency menu when clicking outside
+  document.addEventListener('click', function(e) {
+    var wrap = document.getElementById('efficiency-dropdown-wrap');
+    var menu = document.getElementById('efficiency-menu');
+    if (wrap && menu && !wrap.contains(e.target)) {
+      menu.style.display = 'none';
+      wrap.classList.remove('open');
+    }
+  });
+}
+
+function toggleEfficiencyMenu(e) {
+  if (e && e.stopPropagation) { e.stopPropagation(); }
+  var wrap = document.getElementById('efficiency-dropdown-wrap');
+  var menu = document.getElementById('efficiency-menu');
+  if (!menu || !wrap) return;
+
+  var isVisible = menu.style.display === 'flex' || menu.style.display === 'block';
+  if (isVisible) {
+    menu.style.display = 'none';
+    wrap.classList.remove('open');
+  } else {
+    menu.style.display = 'flex';
+    wrap.classList.add('open');
+  }
+}
+
+function setEfficiency(level, shouldPersist) {
+  if (shouldPersist === undefined) { shouldPersist = true; }
+  level = (level || 'medium').toLowerCase();
+  if (['low', 'medium', 'hard'].indexOf(level) === -1) {
+    level = 'medium';
+  }
+
+  currentEfficiency = level;
+  if (shouldPersist) {
+    localStorage.setItem('tb_efficiency', level);
+  }
+
+  var btn   = document.getElementById('efficiency-btn');
+  var label = document.getElementById('efficiency-label');
+  var menu  = document.getElementById('efficiency-menu');
+  var wrap  = document.getElementById('efficiency-dropdown-wrap');
+
+  if (label) {
+    label.textContent = level.charAt(0).toUpperCase() + level.slice(1);
+  }
+
+  if (btn) {
+    btn.className = 'efficiency-pill-btn level-' + level;
+  }
+
+  // Update active state in menu items
+  var options = document.querySelectorAll('.efficiency-option');
+  for (var i = 0; i < options.length; i++) {
+    if (options[i].getAttribute('data-level') === level) {
+      options[i].classList.add('active');
+    } else {
+      options[i].classList.remove('active');
+    }
+  }
+
+  if (menu) {
+    menu.style.display = 'none';
+  }
+  if (wrap) {
+    wrap.classList.remove('open');
+  }
+}
+
+// -------------------------------------------------------
+// Collapsible Config Section
+// -------------------------------------------------------
+function toggleConfigSection() {
+  var sec = document.getElementById('sidebar-config-section');
+  if (!sec) return;
+  sec.classList.toggle('collapsed');
+  var isCollapsed = sec.classList.contains('collapsed');
+  localStorage.setItem('tb_config_collapsed', isCollapsed ? 'true' : 'false');
+}
+
+function loadConfigSectionState() {
+  var isCollapsed = localStorage.getItem('tb_config_collapsed') === 'true';
+  var sec = document.getElementById('sidebar-config-section');
+  if (sec && isCollapsed) {
+    sec.classList.add('collapsed');
+  }
+}
+
 function renderSessions() {
   var list = document.getElementById('session-list');
   if (!list) { return; }
   list.innerHTML = '';
-  var max = Math.min(sessions.length, 10);
-  for (var i = 0; i < max; i++) {
+
+  var badge = document.getElementById('session-count-badge');
+  if (badge) {
+    badge.textContent = sessions.length > 0 ? ('(' + sessions.length + ')') : '';
+  }
+
+  if (sessions.length === 0) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--text-sub);padding:8px 4px;">No chats yet</div>';
+    return;
+  }
+
+  for (var i = 0; i < sessions.length; i++) {
     var s   = sessions[i];
     var div = document.createElement('div');
     div.className = 'session-item' + (s.id === sessionId ? ' active' : '');
-    div.innerHTML = '<span class="session-dot"></span>' + (s.title || 'Chat');
+    div.innerHTML =
+      '<span class="session-dot"></span>' +
+      '<span class="session-title-text">' + (s.title || 'Chat') + '</span>' +
+      '<button type="button" class="session-del-btn" title="Delete chat" onclick="deleteSessionHandler(event, \'' + s.id + '\')">&#128465;</button>';
     div.onclick   = (function(id) { return function() { loadSession(id); }; })(s.id);
     list.appendChild(div);
+  }
+}
+
+function deleteSessionHandler(event, id) {
+  if (event && event.stopPropagation) {
+    event.stopPropagation();
+  }
+  if (!confirm('Are you sure you want to delete this chat?')) {
+    return;
+  }
+
+  // Remove from localStorage
+  sessions = sessions.filter(function(s) { return s.id !== id; });
+  localStorage.setItem('tb_sessions', JSON.stringify(sessions));
+
+  // Request backend deletion
+  authFetch('/session/' + id, { method: 'DELETE' })
+    .catch(function() {});
+
+  // If deleted current active session, reset to new chat
+  if (id === sessionId) {
+    newChat();
+  } else {
+    renderSessions();
   }
 }
 
@@ -326,7 +495,8 @@ function sendMessage() {
       message:      text,
       api_key:      apiKey,
       provider:     provider,
-      token_budget: budget
+      token_budget: budget,
+      efficiency:   currentEfficiency
     })
   })
   .then(function(res) {
@@ -407,18 +577,7 @@ function updateVault() {
 // Prompt Engineer Panel (Show / Hide / Optimize)
 // -------------------------------------------------------
 function setupPromptEngineerListeners() {
-  var arrowBtn = document.getElementById('prompt-arrow-btn');
-  if (arrowBtn) {
-    arrowBtn.addEventListener('click', function(e) {
-      closePromptPanel(e);
-    });
-  }
-  var closeBtn = document.getElementById('prompt-close-btn');
-  if (closeBtn) {
-    closeBtn.addEventListener('click', function(e) {
-      closePromptPanel(e);
-    });
-  }
+  // Handlers are wired directly via onclick in HTML
 }
 
 function togglePromptPanel(event) {
@@ -438,28 +597,80 @@ function togglePromptPanel(event) {
 }
 
 function openPromptPanel() {
-  var panel = document.getElementById('prompt-panel');
-  var body  = document.getElementById('prompt-panel-body');
+  var panel    = document.getElementById('prompt-panel');
+  var body     = document.getElementById('prompt-panel-body');
+  var arrowBtn = document.getElementById('prompt-arrow-btn');
   if (!panel) return;
 
   panel.classList.remove('hidden');
+  panel.classList.remove('minimized');
   panel.style.display = 'block';
   if (body) { body.style.display = 'flex'; }
+  if (arrowBtn) {
+    arrowBtn.innerHTML = '&#9660;';
+    arrowBtn.title = 'Minimize Prompt Engineer';
+  }
 
   var raw = document.getElementById('raw-prompt');
   if (raw) { raw.focus(); }
   updatePromptButtons(true);
 }
 
+function minimizePromptPanel(event) {
+  if (event && event.stopPropagation) {
+    event.stopPropagation();
+  }
+  var panel    = document.getElementById('prompt-panel');
+  var body     = document.getElementById('prompt-panel-body');
+  var arrowBtn = document.getElementById('prompt-arrow-btn');
+  if (!panel) return;
+
+  // If panel is hidden altogether, open it
+  if (panel.classList.contains('hidden') || panel.style.display === 'none') {
+    openPromptPanel();
+    return;
+  }
+
+  var isMinimized = panel.classList.contains('minimized') || (body && body.style.display === 'none');
+
+  if (isMinimized) {
+    // Expand
+    panel.classList.remove('minimized');
+    if (body) { body.style.display = 'flex'; }
+    if (arrowBtn) {
+      arrowBtn.innerHTML = '&#9660;';
+      arrowBtn.title = 'Minimize Prompt Engineer';
+    }
+    var raw = document.getElementById('raw-prompt');
+    if (raw) { raw.focus(); }
+  } else {
+    // Minimize (keep the header visible, hide the body)
+    panel.classList.add('minimized');
+    if (body) { body.style.display = 'none'; }
+    if (arrowBtn) {
+      arrowBtn.innerHTML = '&#9650;';
+      arrowBtn.title = 'Expand Prompt Engineer';
+    }
+  }
+}
+
 function closePromptPanel(event) {
   if (event && event.stopPropagation) {
     event.stopPropagation();
   }
-  var panel = document.getElementById('prompt-panel');
+  var panel    = document.getElementById('prompt-panel');
+  var body     = document.getElementById('prompt-panel-body');
+  var arrowBtn = document.getElementById('prompt-arrow-btn');
   if (!panel) return;
 
   panel.classList.add('hidden');
+  panel.classList.remove('minimized');
   panel.style.display = 'none';
+  if (body) { body.style.display = 'flex'; }
+  if (arrowBtn) {
+    arrowBtn.innerHTML = '&#9660;';
+    arrowBtn.title = 'Minimize Prompt Engineer';
+  }
   updatePromptButtons(false);
 }
 

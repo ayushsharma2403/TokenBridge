@@ -141,30 +141,43 @@ Write the bullet points now (no preamble):"""
 # Main function (this is what main.py calls)
 # ------------------------------------------------------------------
 
-def optimize(messages: list, api_key: str) -> Tuple[list, int]:
+def optimize(messages: list, api_key: str, efficiency: str = "medium") -> Tuple[list, int]:
     """
     Compresses the conversation if it's above the token threshold.
+    Efficiency levels:
+      - 'low': Higher threshold (4000 tokens), preserves more context (last 10 messages).
+      - 'medium': Default threshold (2500 tokens), preserves moderate context (last 6 messages).
+      - 'hard': Aggressive threshold (1500 tokens), preserves minimal context (last 4 messages).
 
     Returns:
         (messages, token_count)
-        messages is either the original list (if small enough)
-        or the compressed version (summary + recent messages).
     """
     token_count = count_tokens(messages, api_key)
 
+    eff = (efficiency or "medium").lower()
+    if eff == "hard":
+        trigger = 1500
+        keep_recent = 4
+    elif eff == "low":
+        trigger = 4000
+        keep_recent = 10
+    else:  # medium
+        trigger = COMPRESSION_TRIGGER
+        keep_recent = KEEP_RECENT_N
+
     # If we're still within the safe zone, nothing to do
-    if token_count <= COMPRESSION_TRIGGER:
+    if token_count <= trigger:
         return messages, token_count
 
     # Not enough messages to bother splitting
-    if len(messages) <= KEEP_RECENT_N:
+    if len(messages) <= keep_recent:
         return messages, token_count
 
-    print(f"[Optimizer] {token_count} tokens — compressing...")
+    print(f"[Optimizer] {token_count} tokens (efficiency={eff}, trigger={trigger}) — compressing...")
 
     # Split into old (will be summarized) and recent (kept as-is)
-    old_messages    = messages[:-KEEP_RECENT_N]
-    recent_messages = messages[-KEEP_RECENT_N:]
+    old_messages    = messages[:-keep_recent]
+    recent_messages = messages[-keep_recent:]
 
     summary = summarize_old_messages(old_messages, api_key)
     compressed = summary + recent_messages
@@ -176,3 +189,4 @@ def optimize(messages: list, api_key: str) -> Tuple[list, int]:
     print(f"[Optimizer] Done. {token_count} -> {new_count} tokens (saved {saved}, {pct}% reduction).")
 
     return compressed, new_count
+
