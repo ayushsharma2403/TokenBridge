@@ -1130,11 +1130,13 @@ body {
 }
 .efficiency-pill-btn.level-medium .eff-icon { color: var(--accent); }
 
-.efficiency-pill-btn.level-hard {
+.efficiency-pill-btn.level-hard,
+.efficiency-pill-btn.level-high {
   border-color: rgba(255, 159, 10, 0.5);
   background: rgba(255, 159, 10, 0.1);
 }
-.efficiency-pill-btn.level-hard .eff-icon { color: #ff9f0a; }
+.efficiency-pill-btn.level-hard .eff-icon,
+.efficiency-pill-btn.level-high .eff-icon { color: #ff9f0a; }
 
 /* Popup Menu */
 .efficiency-menu {
@@ -1192,7 +1194,8 @@ body {
 
 .eff-opt-dot.eff-low    { background: #34c759; box-shadow: 0 0 6px rgba(52, 199, 89, 0.5); }
 .eff-opt-dot.eff-medium { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
-.eff-opt-dot.eff-hard   { background: #ff9f0a; box-shadow: 0 0 6px rgba(255, 159, 10, 0.5); }
+.eff-opt-dot.eff-hard,
+.eff-opt-dot.eff-high   { background: #ff9f0a; box-shadow: 0 0 6px rgba(255, 159, 10, 0.5); }
 
 .eff-opt-title {
   font-size: 12px;

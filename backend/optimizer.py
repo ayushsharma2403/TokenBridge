@@ -159,8 +159,8 @@ def optimize(messages: list, api_key: str, efficiency: str = "medium") -> Tuple[
         # Low mode: User wants short answers and fast usage; trigger compression early and keep fewer messages
         trigger = 1500
         keep_recent = 4
-    elif eff == "hard":
-        # Hard mode: User wants in-depth/deep analysis with maximum context retained
+    elif eff in ["high", "hard"]:
+        # High mode: User wants in-depth/deep analysis with maximum context retained
         trigger = 4500
         keep_recent = 12
     else:  # medium

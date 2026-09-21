@@ -48,7 +48,7 @@ class ChatRequest(BaseModel):
     api_key:      str
     provider:     str = "claude"
     token_budget: int = 50000
-    efficiency:   str = "medium"  # "low", "medium", "hard"
+    efficiency:   str = "medium"  # "low", "medium", "high" (or "hard")
 
 
 class ChatResponse(BaseModel):

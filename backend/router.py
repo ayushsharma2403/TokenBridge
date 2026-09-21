@@ -26,9 +26,9 @@ def get_efficiency_instruction(efficiency: str) -> str:
             "- Get straight to the point without lengthy explanations, preambles, or filler.\n"
             "- Keep total response length short."
         )
-    elif eff == "hard":
+    elif eff in ["high", "hard"]:
         return (
-            "Efficiency Mode: HARD (Deep / In-Depth / Comprehensive).\n"
+            "Efficiency Mode: HIGH (Deep / In-Depth / Comprehensive).\n"
             "- Provide a thorough, comprehensive, and in-depth answer.\n"
             "- Include complete explanations, step-by-step reasoning, background details, nuances, and concrete examples or code.\n"
             "- Do not cut corners; be detailed, elaborate, and rigorous."
@@ -45,7 +45,7 @@ async def send_to_claude(messages: list, api_key: str, efficiency: str = "medium
     client = anthropic.AsyncAnthropic(api_key=api_key)
     system_prompt = get_efficiency_instruction(efficiency)
     eff = (efficiency or "medium").lower()
-    max_tokens = 350 if eff == "low" else (4096 if eff == "hard" else 1024)
+    max_tokens = 350 if eff == "low" else (4096 if eff in ["high", "hard"] else 1024)
 
     response = await client.messages.create(
         model=CLAUDE_MODEL,
@@ -64,7 +64,7 @@ async def send_to_openai(messages: list, api_key: str, efficiency: str = "medium
     client = AsyncOpenAI(api_key=api_key)
     system_prompt = get_efficiency_instruction(efficiency)
     eff = (efficiency or "medium").lower()
-    max_tokens = 350 if eff == "low" else (4096 if eff == "hard" else 1024)
+    max_tokens = 350 if eff == "low" else (4096 if eff in ["high", "hard"] else 1024)
 
     formatted_messages = [{"role": "system", "content": system_prompt}] + messages
     response = await client.chat.completions.create(
