@@ -19,25 +19,32 @@ def detect_provider(api_key: str, provider: str = None) -> str:
 
 def get_efficiency_instruction(efficiency: str) -> str:
     eff = (efficiency or "medium").lower()
+    formatting_directive = (
+        "\nIMPORTANT FORMATTING RULES:\n"
+        "- Use standard GitHub-flavored Markdown.\n"
+        "- ALWAYS put a blank line before and after any headers (#, ##, ###, ####).\n"
+        "- ALWAYS put each bullet point (* or -) and numbered list item (1., 2.) on its own separate line.\n"
+        "- Never squish headers or list items into a single continuous paragraph."
+    )
     if eff == "low":
         return (
             "Efficiency Mode: LOW (Short / Fast / Brief).\n"
             "- Answer briefly and concisely in 1 to 3 short paragraphs or compact bullet points.\n"
             "- Get straight to the point without lengthy explanations, preambles, or filler.\n"
-            "- Keep total response length short."
+            "- Keep total response length short." + formatting_directive
         )
     elif eff in ["high", "hard"]:
         return (
             "Efficiency Mode: HIGH (Deep / In-Depth / Comprehensive).\n"
             "- Provide a thorough, comprehensive, and in-depth answer.\n"
             "- Include complete explanations, step-by-step reasoning, background details, nuances, and concrete examples or code.\n"
-            "- Do not cut corners; be detailed, elaborate, and rigorous."
+            "- Do not cut corners; be detailed, elaborate, and rigorous." + formatting_directive
         )
     else:  # medium
         return (
             "Efficiency Mode: MEDIUM (Balanced / Moderate).\n"
             "- Provide a balanced, moderate-length answer with clear key points and helpful context.\n"
-            "- Neither too brief nor excessively verbose."
+            "- Neither too brief nor excessively verbose." + formatting_directive
         )
 
 
