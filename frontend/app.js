@@ -390,6 +390,105 @@ function renderAllMessages() {
   area.scrollTop = area.scrollHeight;
 }
 
+function formatContent(text) {
+  if (!text) return '';
+
+  // If marked.js is loaded, use full markdown rendering
+  if (typeof marked !== 'undefined') {
+    try {
+      marked.setOptions({
+        gfm: true,
+        breaks: true,
+        headerIds: false,
+        mangle: false
+      });
+      var rawHtml = marked.parse(text);
+      if (typeof DOMPurify !== 'undefined') {
+        return DOMPurify.sanitize(rawHtml);
+      }
+      return rawHtml;
+    } catch (e) {
+      console.warn('marked parse error:', e);
+    }
+  }
+
+  // Fallback markdown parser if CDN is unreachable
+  var escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  // Headings
+  escaped = escaped.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+  escaped = escaped.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+  escaped = escaped.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+  // Horizontal Rule
+  escaped = escaped.replace(/^---$/gim, '<hr>');
+
+  // Code blocks
+  escaped = escaped.replace(/```([a-zA-Z0-9_\-+#]*)\n?([\s\S]*?)```/g, function(match, lang, code) {
+    var langTag = lang ? '<div class="code-header"><span class="code-lang">' + lang + '</span></div>' : '';
+    return '<div class="code-block-wrapper">' + langTag + '<pre><code>' + code.trim() + '</code></pre></div>';
+  });
+
+  // Inline code & bold & lists
+  escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
+  escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  escaped = escaped.replace(/^\s*[-*]\s+(.*)$/gm, '<li>$1</li>');
+  escaped = escaped.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+  escaped = escaped.replace(/\n/g, '<br>');
+  return escaped;
+}
+
+function enhanceCodeBlocks(container) {
+  if (!container) return;
+  var preElements = container.querySelectorAll('pre');
+  preElements.forEach(function(pre) {
+    if (pre.closest('.code-block-wrapper')) return;
+
+    var codeEl = pre.querySelector('code');
+    var codeText = codeEl ? codeEl.innerText : pre.innerText;
+
+    // Detect language from class (e.g. language-python)
+    var lang = 'Code';
+    if (codeEl && codeEl.className) {
+      var match = codeEl.className.match(/language-([a-zA-Z0-9_\-+]+)/);
+      if (match) { lang = match[1]; }
+    }
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'code-block-wrapper';
+
+    var header = document.createElement('div');
+    header.className = 'code-header';
+
+    var langSpan = document.createElement('span');
+    langSpan.className = 'code-lang';
+    langSpan.textContent = lang;
+
+    var copyBtn = document.createElement('button');
+    copyBtn.className = 'code-copy-btn';
+    copyBtn.type = 'button';
+    copyBtn.innerHTML = '&#128203; Copy';
+    copyBtn.onclick = function() {
+      navigator.clipboard.writeText(codeText).then(function() {
+        copyBtn.innerHTML = '&#10003; Copied!';
+        setTimeout(function() { copyBtn.innerHTML = '&#128203; Copy'; }, 2000);
+      });
+    };
+
+    header.appendChild(langSpan);
+    header.appendChild(copyBtn);
+
+    pre.parentNode.insertBefore(wrapper, pre);
+    wrapper.appendChild(header);
+    wrapper.appendChild(pre);
+  });
+}
+
 function appendMessage(role, content, scroll, msgIndex) {
   if (scroll === undefined) { scroll = true; }
   if (msgIndex === undefined) { msgIndex = messages.length - 1; }
