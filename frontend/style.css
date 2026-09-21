@@ -1385,6 +1385,164 @@ body {
 .send-btn:hover { transform: scale(1.1); box-shadow: 0 6px 20px var(--accent-glow); }
 .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
+/* Stop Progress Button (ChatGPT-like square stop button) */
+.stop-btn {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: #ff453a;
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(255, 69, 58, 0.4);
+  animation: pulseStop 1.5s infinite;
+}
+
+@keyframes pulseStop {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 69, 58, 0.4); }
+  50%      { transform: scale(1.08); box-shadow: 0 0 18px rgba(255, 69, 58, 0.7); }
+}
+
+.stop-btn:hover {
+  background: #e03b30;
+  transform: scale(1.1);
+}
+
+/* Message Hover Action Toolbar (Edit, Copy, Delete) */
+.message-wrap {
+  position: relative;
+  group: true;
+}
+
+.message-content-col {
+  display: flex;
+  flex-direction: column;
+  max-width: 82%;
+}
+
+.message-wrap.user .message-content-col {
+  align-items: flex-end;
+}
+
+.message-wrap.ai .message-content-col {
+  align-items: flex-start;
+}
+
+.message-actions-bar {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 6px;
+  border-radius: 99px;
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-sm);
+  user-select: none;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.message-wrap:hover .message-actions-bar {
+  display: flex;
+}
+
+.msg-act-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-sub);
+  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: "Poppins", sans-serif;
+}
+
+.msg-act-btn:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.msg-act-btn.delete:hover {
+  color: var(--danger);
+  background: rgba(255, 69, 58, 0.12);
+}
+
+/* Edit message inline box */
+.edit-message-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 320px;
+  background: var(--glass);
+  border: 1px solid var(--accent);
+  padding: 10px 14px;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+
+.edit-message-box textarea {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text);
+  font-family: "Poppins", sans-serif;
+  font-size: 13.5px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  resize: vertical;
+  outline: none;
+  min-height: 60px;
+}
+
+.edit-box-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-edit-save {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-edit-save:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.btn-edit-cancel {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-sub);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-edit-cancel:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
 .input-hint { font-size: 11px; color: var(--text-sub); text-align: center; margin-top: 8px; }
 
 /* File Upload & Markdown Preview Card */

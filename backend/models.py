@@ -87,6 +87,10 @@ class SessionInfo(BaseModel):
     messages:      list
 
 
+class SessionUpdateRequest(BaseModel):
+    messages: list
+
+
 class UsageSummary(BaseModel):
     total_budget: int
     used:         int
