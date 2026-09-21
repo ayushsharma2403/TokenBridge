@@ -7,6 +7,7 @@ var isLoading = false;
 var sessions  = [];
 var currentUploadedFile = null;
 var currentEfficiency   = localStorage.getItem('tb_efficiency') || 'medium';
+var currentAbortController = null;
 
 // -------------------------------------------------------
 // Init
@@ -384,125 +385,33 @@ function renderAllMessages() {
   var area = document.getElementById('messages-area');
   area.innerHTML = '';
   for (var i = 0; i < messages.length; i++) {
-    appendMessage(messages[i].role, messages[i].content, false);
+    appendMessage(messages[i].role, messages[i].content, false, i);
   }
   area.scrollTop = area.scrollHeight;
 }
 
-function formatContent(text) {
-  if (!text) return '';
-
-  // If marked.js is loaded, use full markdown rendering
-  if (typeof marked !== 'undefined') {
-    try {
-      marked.setOptions({
-        gfm: true,
-        breaks: true,
-        headerIds: false,
-        mangle: false
-      });
-      var rawHtml = marked.parse(text);
-      if (typeof DOMPurify !== 'undefined') {
-        return DOMPurify.sanitize(rawHtml);
-      }
-      return rawHtml;
-    } catch (e) {
-      console.warn('marked parse error:', e);
-    }
-  }
-
-  // Fallback markdown parser if CDN is unreachable
-  var escaped = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-
-  // Headings
-  escaped = escaped.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-  escaped = escaped.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-  escaped = escaped.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-
-  // Horizontal Rule
-  escaped = escaped.replace(/^---$/gim, '<hr>');
-
-  // Code blocks
-  escaped = escaped.replace(/```([a-zA-Z0-9_\-+#]*)\n?([\s\S]*?)```/g, function(match, lang, code) {
-    var langTag = lang ? '<div class="code-header"><span class="code-lang">' + lang + '</span></div>' : '';
-    return '<div class="code-block-wrapper">' + langTag + '<pre><code>' + code.trim() + '</code></pre></div>';
-  });
-
-  // Inline code & bold & lists
-  escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
-  escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  escaped = escaped.replace(/^\s*[-*]\s+(.*)$/gm, '<li>$1</li>');
-  escaped = escaped.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
-  escaped = escaped.replace(/\n/g, '<br>');
-  return escaped;
-}
-
-function enhanceCodeBlocks(container) {
-  if (!container) return;
-  var preElements = container.querySelectorAll('pre');
-  preElements.forEach(function(pre) {
-    if (pre.closest('.code-block-wrapper')) return;
-
-    var codeEl = pre.querySelector('code');
-    var codeText = codeEl ? codeEl.innerText : pre.innerText;
-
-    // Detect language from class (e.g. language-python)
-    var lang = 'Code';
-    if (codeEl && codeEl.className) {
-      var match = codeEl.className.match(/language-([a-zA-Z0-9_\-+]+)/);
-      if (match) { lang = match[1]; }
-    }
-
-    var wrapper = document.createElement('div');
-    wrapper.className = 'code-block-wrapper';
-
-    var header = document.createElement('div');
-    header.className = 'code-header';
-
-    var langSpan = document.createElement('span');
-    langSpan.className = 'code-lang';
-    langSpan.textContent = lang;
-
-    var copyBtn = document.createElement('button');
-    copyBtn.className = 'code-copy-btn';
-    copyBtn.type = 'button';
-    copyBtn.innerHTML = '&#128203; Copy';
-    copyBtn.onclick = function() {
-      navigator.clipboard.writeText(codeText).then(function() {
-        copyBtn.innerHTML = '&#10003; Copied!';
-        setTimeout(function() { copyBtn.innerHTML = '&#128203; Copy'; }, 2000);
-      });
-    };
-
-    header.appendChild(langSpan);
-    header.appendChild(copyBtn);
-
-    pre.parentNode.insertBefore(wrapper, pre);
-    wrapper.appendChild(header);
-    wrapper.appendChild(pre);
-  });
-}
-
-function appendMessage(role, content, scroll) {
+function appendMessage(role, content, scroll, msgIndex) {
   if (scroll === undefined) { scroll = true; }
+  if (msgIndex === undefined) { msgIndex = messages.length - 1; }
+
   var empty = document.getElementById('empty-state');
   if (empty) { empty.remove(); }
 
   var area   = document.getElementById('messages-area');
   var wrap   = document.createElement('div');
   wrap.className = 'message-wrap ' + (role === 'user' ? 'user' : 'ai');
+  wrap.setAttribute('data-index', msgIndex);
 
   var avatar = document.createElement('div');
   avatar.className   = 'message-avatar';
   avatar.textContent = role === 'user' ? 'U' : 'AI';
 
+  var contentCol = document.createElement('div');
+  contentCol.className = 'message-content-col';
+
   var bubble = document.createElement('div');
   bubble.className   = 'message-bubble markdown-body';
+  bubble.id          = 'msg-bubble-' + msgIndex;
   if (role === 'ai') {
     bubble.innerHTML = formatContent(content);
     enhanceCodeBlocks(bubble);
@@ -510,12 +419,189 @@ function appendMessage(role, content, scroll) {
     bubble.textContent = content;
   }
 
+  // Action toolbar on hover (Edit, Copy, Delete, Regenerate)
+  var actionsBar = document.createElement('div');
+  actionsBar.className = 'message-actions-bar';
+
+  // Copy Action
+  var copyBtn = document.createElement('button');
+  copyBtn.type = 'button';
+  copyBtn.className = 'msg-act-btn';
+  copyBtn.title = 'Copy message';
+  copyBtn.innerHTML = '&#128203; Copy';
+  copyBtn.onclick = function() {
+    navigator.clipboard.writeText(content).then(function() {
+      copyBtn.innerHTML = '&#10003; Copied!';
+      setTimeout(function() { copyBtn.innerHTML = '&#128203; Copy'; }, 1800);
+    });
+  };
+  actionsBar.appendChild(copyBtn);
+
+  if (role === 'user') {
+    // Edit Message Action for User
+    var editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'msg-act-btn';
+    editBtn.title = 'Edit & resend message';
+    editBtn.innerHTML = '&#9998; Edit';
+    editBtn.onclick = function() {
+      startEditMessage(msgIndex);
+    };
+    actionsBar.appendChild(editBtn);
+  } else if (role === 'ai') {
+    // Retry/Regenerate Action for AI
+    var retryBtn = document.createElement('button');
+    retryBtn.type = 'button';
+    retryBtn.className = 'msg-act-btn';
+    retryBtn.title = 'Regenerate response';
+    retryBtn.innerHTML = '&#8635; Retry';
+    retryBtn.onclick = function() {
+      regenerateFromIndex(msgIndex);
+    };
+    actionsBar.appendChild(retryBtn);
+  }
+
+  // Delete message
+  var delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.className = 'msg-act-btn delete';
+  delBtn.title = 'Delete message';
+  delBtn.innerHTML = '&#128465;';
+  delBtn.onclick = function() {
+    deleteMessageAtIndex(msgIndex);
+  };
+  actionsBar.appendChild(delBtn);
+
+  contentCol.appendChild(bubble);
+  contentCol.appendChild(actionsBar);
+
   wrap.appendChild(avatar);
-  wrap.appendChild(bubble);
+  wrap.appendChild(contentCol);
   area.appendChild(wrap);
 
   if (scroll) { area.scrollTop = area.scrollHeight; }
   return wrap;
+}
+
+function startEditMessage(index) {
+  if (isLoading) {
+    alert('Please wait or stop the current response before editing.');
+    return;
+  }
+  var msg = messages[index];
+  if (!msg) return;
+
+  var bubble = document.getElementById('msg-bubble-' + index);
+  if (!bubble) return;
+
+  var currentText = msg.content;
+  bubble.innerHTML = '';
+
+  var editBox = document.createElement('div');
+  editBox.className = 'edit-message-box';
+
+  var textarea = document.createElement('textarea');
+  textarea.value = currentText;
+  textarea.rows = Math.min(6, Math.max(2, currentText.split('\n').length));
+
+  var actionRow = document.createElement('div');
+  actionRow.className = 'edit-box-actions';
+
+  var cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'btn-edit-cancel';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.onclick = function() {
+    renderAllMessages();
+  };
+
+  var saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'btn-edit-save';
+  saveBtn.textContent = 'Save & Resend';
+  saveBtn.onclick = function() {
+    var updatedText = textarea.value.trim();
+    if (!updatedText) {
+      alert('Message cannot be empty.');
+      return;
+    }
+    submitEditedMessage(index, updatedText);
+  };
+
+  actionRow.appendChild(cancelBtn);
+  actionRow.appendChild(saveBtn);
+
+  editBox.appendChild(textarea);
+  editBox.appendChild(actionRow);
+  bubble.appendChild(editBox);
+  textarea.focus();
+}
+
+function submitEditedMessage(index, newContent) {
+  // Truncate messages up to this user message and re-send
+  messages = messages.slice(0, index);
+  renderAllMessages();
+
+  // Send the edited message
+  sendSpecificMessage(newContent);
+}
+
+function regenerateFromIndex(aiIndex) {
+  if (isLoading) return;
+  // Look for the user message that prompted this AI response
+  var userPrompt = '';
+  if (aiIndex > 0 && messages[aiIndex - 1].role === 'user') {
+    userPrompt = messages[aiIndex - 1].content;
+    messages = messages.slice(0, aiIndex - 1);
+  } else {
+    messages = messages.slice(0, aiIndex);
+  }
+
+  renderAllMessages();
+  if (userPrompt) {
+    sendSpecificMessage(userPrompt);
+  }
+}
+
+function deleteMessageAtIndex(index) {
+  if (isLoading) return;
+  if (!confirm('Delete this message?')) return;
+
+  messages.splice(index, 1);
+  renderAllMessages();
+
+  // Sync with backend
+  authFetch('/session/' + sessionId, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: messages })
+  }).catch(function() {});
+}
+
+function stopGeneration() {
+  if (currentAbortController) {
+    currentAbortController.abort();
+    currentAbortController = null;
+  }
+  removeTyping();
+  isLoading = false;
+  toggleStopButton(false);
+  appendMessage('ai', '*[Generation stopped by user]*');
+}
+
+function toggleStopButton(showStop) {
+  var sendBtn = document.getElementById('send-btn');
+  var stopBtn = document.getElementById('stop-btn');
+  if (sendBtn && stopBtn) {
+    if (showStop) {
+      sendBtn.style.display = 'none';
+      stopBtn.style.display = 'flex';
+    } else {
+      sendBtn.style.display = 'flex';
+      sendBtn.disabled = false;
+      stopBtn.style.display = 'none';
+    }
+  }
 }
 
 function showTyping() {
@@ -549,9 +635,15 @@ function removeTyping() {
 function sendMessage() {
   var input   = document.getElementById('message-input');
   var text    = input.value.trim();
+  if (!text) { alert('Please type a message.'); return; }
+  input.value        = '';
+  input.style.height = 'auto';
+  sendSpecificMessage(text);
+}
+
+function sendSpecificMessage(text) {
   var apiKey  = getApiKey();
 
-  if (!text)     { alert('Please type a message.'); return; }
   if (!apiKey)   { alert('Please paste your API key in the sidebar.'); return; }
   if (isLoading) { return; }
 
@@ -559,20 +651,21 @@ function sendMessage() {
   var budget   = parseInt(document.getElementById('token-budget').value) || 50000;
 
   messages.push({ role: 'user', content: text });
-  appendMessage('user', text);
-  input.value        = '';
-  input.style.height = 'auto';
+  appendMessage('user', text, true, messages.length - 1);
 
   var preview = document.getElementById('file-preview');
   if (preview) { preview.style.display = 'none'; }
 
   isLoading = true;
-  document.getElementById('send-btn').disabled = true;
+  toggleStopButton(true);
   showTyping();
+
+  currentAbortController = new AbortController();
 
   authFetch('/chat', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
+    signal:  currentAbortController.signal,
     body: JSON.stringify({
       session_id:   sessionId,
       message:      text,
@@ -591,7 +684,7 @@ function sendMessage() {
         appendMessage('ai', 'Error: ' + (data.detail || 'Something went wrong.'));
       } else {
         messages.push({ role: 'assistant', content: data.reply });
-        appendMessage('ai', data.reply);
+        appendMessage('ai', data.reply, true, messages.length - 1);
         updateTokenMeter(data.tokens_remaining, budget);
         updateVaultRow(provider, data.tokens_this_call);
         saveSessionToList();
@@ -599,13 +692,18 @@ function sendMessage() {
       }
     });
   })
-  .catch(function() {
+  .catch(function(err) {
     removeTyping();
+    if (err && err.name === 'AbortError') {
+      // User aborted explicitly via Stop button, already handled
+      return;
+    }
     appendMessage('ai', 'Could not reach the server. Make sure backend is running.');
   })
   .finally(function() {
     isLoading = false;
-    document.getElementById('send-btn').disabled = false;
+    currentAbortController = null;
+    toggleStopButton(false);
   });
 }
 

@@ -13,7 +13,7 @@ from database        import setup
 from models          import (
     ChatRequest, ChatResponse,
     PromptEngineerRequest, PromptEngineerResponse,
-    SessionInfo, UsageSummary,
+    SessionInfo, SessionUpdateRequest, UsageSummary,
     RegisterRequest, LoginRequest, PhoneAuthRequest,
     ForgotPasswordRequest, ResetPasswordRequest, AuthResponse
 )
@@ -311,6 +311,14 @@ async def get_session(session_id: str, authorization: Optional[str] = Header(Non
         message_count=len(messages),
         messages=messages
     )
+
+
+@app.put("/session/{session_id}")
+async def update_session(session_id: str, req: SessionUpdateRequest, authorization: Optional[str] = Header(None)):
+    get_current_user(authorization)
+    checkpoint = Checkpoint(session_id)
+    checkpoint.save(req.messages)
+    return {"message": "Session updated successfully.", "session_id": session_id, "message_count": len(req.messages)}
 
 
 @app.get("/usage/{session_id}", response_model=UsageSummary)
