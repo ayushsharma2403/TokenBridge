@@ -17,11 +17,38 @@ def detect_provider(api_key: str, provider: str = None) -> str:
         return "openai"
 
 
-async def send_to_claude(messages: list, api_key: str) -> Tuple[str, int, int]:
-    client   = anthropic.AsyncAnthropic(api_key=api_key)
+def get_efficiency_instruction(efficiency: str) -> str:
+    eff = (efficiency or "medium").lower()
+    if eff == "hard":
+        return (
+            "Efficiency Mode: HARD.\n"
+            "- Be exceptionally concise, direct, and compact.\n"
+            "- Answer using minimal tokens without unnecessary pleasantries, preamble, or repetition.\n"
+            "- Use bullet points or code snippets only where essential."
+        )
+    elif eff == "low":
+        return (
+            "Efficiency Mode: LOW.\n"
+            "- Provide a comprehensive, detailed, and thoroughly explained answer.\n"
+            "- Include context, reasoning, step-by-step breakdowns, and illustrative examples."
+        )
+    else:  # medium
+        return (
+            "Efficiency Mode: MEDIUM.\n"
+            "- Provide a balanced, clear, and well-structured answer.\n"
+            "- Be concise while covering all necessary key details."
+        )
+
+
+async def send_to_claude(messages: list, api_key: str, efficiency: str = "medium") -> Tuple[str, int, int]:
+    client = anthropic.AsyncAnthropic(api_key=api_key)
+    system_prompt = get_efficiency_instruction(efficiency)
+    max_tokens = 512 if efficiency.lower() == "hard" else (2048 if efficiency.lower() == "low" else 1024)
+
     response = await client.messages.create(
         model=CLAUDE_MODEL,
-        max_tokens=1024,
+        max_tokens=max_tokens,
+        system=system_prompt,
         messages=messages
     )
     return (
@@ -31,12 +58,16 @@ async def send_to_claude(messages: list, api_key: str) -> Tuple[str, int, int]:
     )
 
 
-async def send_to_openai(messages: list, api_key: str) -> Tuple[str, int, int]:
-    client   = AsyncOpenAI(api_key=api_key)
+async def send_to_openai(messages: list, api_key: str, efficiency: str = "medium") -> Tuple[str, int, int]:
+    client = AsyncOpenAI(api_key=api_key)
+    system_prompt = get_efficiency_instruction(efficiency)
+    max_tokens = 512 if efficiency.lower() == "hard" else (2048 if efficiency.lower() == "low" else 1024)
+
+    formatted_messages = [{"role": "system", "content": system_prompt}] + messages
     response = await client.chat.completions.create(
         model=OPENAI_MODEL,
-        max_tokens=1024,
-        messages=messages
+        max_tokens=max_tokens,
+        messages=formatted_messages
     )
     return (
         response.choices[0].message.content,
@@ -45,8 +76,9 @@ async def send_to_openai(messages: list, api_key: str) -> Tuple[str, int, int]:
     )
 
 
-async def send_to_gemini(messages: list, api_key: str) -> Tuple[str, int, int]:
+async def send_to_gemini(messages: list, api_key: str, efficiency: str = "medium") -> Tuple[str, int, int]:
     genai.configure(api_key=api_key)
+    system_prompt = get_efficiency_instruction(efficiency)
 
     # Convert messages to Gemini format, ensuring strictly alternating turns
     history = []
@@ -77,7 +109,7 @@ async def send_to_gemini(messages: list, api_key: str) -> Tuple[str, int, int]:
     last_error = None
     for model_name in candidates:
         try:
-            model = genai.GenerativeModel(model_name)
+            model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
             chat = model.start_chat(history=history)
             response = chat.send_message(last_content)
 
@@ -89,12 +121,25 @@ async def send_to_gemini(messages: list, api_key: str) -> Tuple[str, int, int]:
             err_msg = str(e)
             if "404" in err_msg or "not found" in err_msg.lower() or "not supported" in err_msg.lower():
                 continue
+            # Some versions might reject system_instruction on certain models, retry without if needed
+            if "system_instruction" in err_msg.lower():
+                try:
+                    fallback_model = genai.GenerativeModel(model_name)
+                    # Prepend system instruction to last content or history
+                    chat = fallback_model.start_chat(history=history)
+                    prepended_content = f"[{system_prompt}]\n\n{last_content}"
+                    response = chat.send_message(prepended_content)
+                    input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0) or 0
+                    output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0) or 0
+                    return response.text, input_tokens, output_tokens
+                except Exception:
+                    pass
             raise e
 
     raise last_error
 
 
-async def call_api(messages: list, api_key: str, provider: str) -> Tuple[str, int, int]:
+async def call_api(messages: list, api_key: str, provider: str, efficiency: str = "medium") -> Tuple[str, int, int]:
     """
     Routes to the correct provider.
     Returns (reply, input_tokens, output_tokens)
@@ -102,12 +147,13 @@ async def call_api(messages: list, api_key: str, provider: str) -> Tuple[str, in
     provider = detect_provider(api_key, provider)
 
     if provider == "claude":
-        return await send_to_claude(messages, api_key)
+        return await send_to_claude(messages, api_key, efficiency=efficiency)
     elif provider == "openai":
-        return await send_to_openai(messages, api_key)
+        return await send_to_openai(messages, api_key, efficiency=efficiency)
     elif provider == "gemini":
-        return await send_to_gemini(messages, api_key)
+        return await send_to_gemini(messages, api_key, efficiency=efficiency)
     else:
         raise ValueError(
             f"Unknown provider: {provider}. Valid: claude, openai, gemini"
         )
+

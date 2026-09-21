@@ -234,8 +234,12 @@ async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
     history    = checkpoint.load()
     history.append({"role": "user", "content": req.message})
 
+    efficiency = (req.efficiency or "medium").lower()
+    if efficiency not in ["low", "medium", "hard"]:
+        efficiency = "medium"
+
     tokens_before               = sum(len(str(m["content"])) for m in history) // 4
-    optimized, estimated_tokens = optimize(history, req.api_key)
+    optimized, estimated_tokens = optimize(history, req.api_key, efficiency=efficiency)
     tokens_saved                = max(0, tokens_before - estimated_tokens)
 
     if not budget.has_enough(estimated_tokens + RESPONSE_BUFFER):
@@ -255,7 +259,8 @@ async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         reply, input_tokens, output_tokens = await call_api(
             messages=optimized,
             api_key=req.api_key,
-            provider=provider
+            provider=provider,
+            efficiency=efficiency
         )
     except Exception as e:
         checkpoint.save(history, req.provider)
