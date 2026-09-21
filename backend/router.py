@@ -19,31 +19,33 @@ def detect_provider(api_key: str, provider: str = None) -> str:
 
 def get_efficiency_instruction(efficiency: str) -> str:
     eff = (efficiency or "medium").lower()
-    if eff == "hard":
+    if eff == "low":
         return (
-            "Efficiency Mode: HARD.\n"
-            "- Be exceptionally concise, direct, and compact.\n"
-            "- Answer using minimal tokens without unnecessary pleasantries, preamble, or repetition.\n"
-            "- Use bullet points or code snippets only where essential."
+            "Efficiency Mode: LOW (Short / Fast / Brief).\n"
+            "- Answer briefly and concisely in 1 to 3 short paragraphs or compact bullet points.\n"
+            "- Get straight to the point without lengthy explanations, preambles, or filler.\n"
+            "- Keep total response length short."
         )
-    elif eff == "low":
+    elif eff == "hard":
         return (
-            "Efficiency Mode: LOW.\n"
-            "- Provide a comprehensive, detailed, and thoroughly explained answer.\n"
-            "- Include context, reasoning, step-by-step breakdowns, and illustrative examples."
+            "Efficiency Mode: HARD (Deep / In-Depth / Comprehensive).\n"
+            "- Provide a thorough, comprehensive, and in-depth answer.\n"
+            "- Include complete explanations, step-by-step reasoning, background details, nuances, and concrete examples or code.\n"
+            "- Do not cut corners; be detailed, elaborate, and rigorous."
         )
     else:  # medium
         return (
-            "Efficiency Mode: MEDIUM.\n"
-            "- Provide a balanced, clear, and well-structured answer.\n"
-            "- Be concise while covering all necessary key details."
+            "Efficiency Mode: MEDIUM (Balanced / Moderate).\n"
+            "- Provide a balanced, moderate-length answer with clear key points and helpful context.\n"
+            "- Neither too brief nor excessively verbose."
         )
 
 
 async def send_to_claude(messages: list, api_key: str, efficiency: str = "medium") -> Tuple[str, int, int]:
     client = anthropic.AsyncAnthropic(api_key=api_key)
     system_prompt = get_efficiency_instruction(efficiency)
-    max_tokens = 512 if efficiency.lower() == "hard" else (2048 if efficiency.lower() == "low" else 1024)
+    eff = (efficiency or "medium").lower()
+    max_tokens = 350 if eff == "low" else (4096 if eff == "hard" else 1024)
 
     response = await client.messages.create(
         model=CLAUDE_MODEL,
@@ -61,7 +63,8 @@ async def send_to_claude(messages: list, api_key: str, efficiency: str = "medium
 async def send_to_openai(messages: list, api_key: str, efficiency: str = "medium") -> Tuple[str, int, int]:
     client = AsyncOpenAI(api_key=api_key)
     system_prompt = get_efficiency_instruction(efficiency)
-    max_tokens = 512 if efficiency.lower() == "hard" else (2048 if efficiency.lower() == "low" else 1024)
+    eff = (efficiency or "medium").lower()
+    max_tokens = 350 if eff == "low" else (4096 if eff == "hard" else 1024)
 
     formatted_messages = [{"role": "system", "content": system_prompt}] + messages
     response = await client.chat.completions.create(

@@ -155,12 +155,14 @@ def optimize(messages: list, api_key: str, efficiency: str = "medium") -> Tuple[
     token_count = count_tokens(messages, api_key)
 
     eff = (efficiency or "medium").lower()
-    if eff == "hard":
+    if eff == "low":
+        # Low mode: User wants short answers and fast usage; trigger compression early and keep fewer messages
         trigger = 1500
         keep_recent = 4
-    elif eff == "low":
-        trigger = 4000
-        keep_recent = 10
+    elif eff == "hard":
+        # Hard mode: User wants in-depth/deep analysis with maximum context retained
+        trigger = 4500
+        keep_recent = 12
     else:  # medium
         trigger = COMPRESSION_TRIGGER
         keep_recent = KEEP_RECENT_N
