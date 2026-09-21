@@ -17,7 +17,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="style.css?v=4.3">
+  <link rel="stylesheet" href="style.css?v=4.4">
 </head>
 <body>
 
@@ -231,8 +231,16 @@
               </div>
             </div>
           </div>
-          <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send message (Ctrl+Enter)">&#10148;</button>
-          <button class="stop-btn hidden" id="stop-btn" onclick="stopGeneration()" title="Stop generating" style="display:none;">&#9632;</button>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send message (Ctrl+Enter)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+          </button>
+          <button class="stop-btn" id="stop-btn" onclick="stopGeneration()" title="Stop generation" style="display:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="5" y="5" width="14" height="14" rx="2" ry="2"/>
+            </svg>
+          </button>
         </div>
         <div id="file-preview" class="file-preview-card" style="display:none;"></div>
         <p class="input-hint">Session: <span id="session-id-display">&#8212;</span></p>
@@ -244,6 +252,6 @@
   <!-- Markdown Rendering & Sanitization (ChatGPT-like rich formatting) -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
-  <script src="app.js?v=4.3"></script>
+  <script src="app.js?v=4.4"></script>
 </body>
 </html>
