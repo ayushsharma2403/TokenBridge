@@ -58,6 +58,7 @@ class ChatResponse(BaseModel):
     tokens_remaining: int
     total_used:       int
     checkpoint_saved: bool
+    provider:         Optional[str] = None
 
 
 # -------------------------------------------------------
@@ -85,6 +86,7 @@ class SessionInfo(BaseModel):
     session_id:    str
     message_count: int
     messages:      list
+    provider:      Optional[str] = None
 
 
 class SessionUpdateRequest(BaseModel):
@@ -96,3 +98,12 @@ class UsageSummary(BaseModel):
     used:         int
     remaining:    int
     percent_left: float
+    provider:     Optional[str] = None
+
+
+class ModelLimits(BaseModel):
+    model_name:   str
+    max_tokens:   int
+    description:  str
+    input_rate:   float
+    output_rate:  float

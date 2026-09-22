@@ -8,6 +8,7 @@ Next time they come back (with fresh credits), they resume from this point.
 
 import json
 from datetime import datetime
+from typing import Optional
 from database import connect
 
 
@@ -70,6 +71,17 @@ class Checkpoint:
             return json.loads(row["messages"])  # JSON string → list
 
         return []  # no checkpoint found, start fresh
+
+    def get_provider(self) -> Optional[str]:
+        conn = connect()
+        c = conn.cursor(dictionary=True)
+        c.execute(
+            "SELECT provider FROM sessions WHERE session_id = %s",
+            (self.session_id,)
+        )
+        row = c.fetchone()
+        conn.close()
+        return row["provider"] if row and row.get("provider") else None
 
     # ------------------------------------------------------------------
     # Utilities
