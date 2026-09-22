@@ -12,22 +12,29 @@ from database import connect
 
 class Budget:
 
-    def __init__(self, session_id: str, total_tokens: int):
+    def __init__(self, session_id: str, total_tokens: int, provider: str = None):
         self.session_id  = session_id
         self.total       = total_tokens
+        self.provider    = (provider or "").strip().lower() if provider else None
 
     # ------------------------------------------------------------------
     # Core calculations
     # ------------------------------------------------------------------
 
     def used_so_far(self) -> int:
-        """Total tokens spent across all calls in this session."""
+        """Total tokens spent across calls in this session (filtered by provider if specified)."""
         conn = connect()
         c = conn.cursor()
-        c.execute(
-            "SELECT COALESCE(SUM(tokens_used), 0) FROM usage_log WHERE session_id = %s",
-            (self.session_id,)
-        )
+        if self.provider:
+            c.execute(
+                "SELECT COALESCE(SUM(tokens_used), 0) FROM usage_log WHERE session_id = %s AND LOWER(provider) = %s",
+                (self.session_id, self.provider)
+            )
+        else:
+            c.execute(
+                "SELECT COALESCE(SUM(tokens_used), 0) FROM usage_log WHERE session_id = %s",
+                (self.session_id,)
+            )
         row = c.fetchone()
         conn.close()
 
@@ -47,16 +54,17 @@ class Budget:
     # Logging
     # ------------------------------------------------------------------
 
-    def log_usage(self, tokens: int, call_type: str = "chat", user_id: int = None) -> None:
+    def log_usage(self, tokens: int, call_type: str = "chat", user_id: int = None, provider: str = None) -> None:
         """
-        Records how many tokens an API call used.
+        Records how many tokens an API call used, including the provider.
         call_type can be 'chat' or 'summarize' (optimizer calls are logged too).
         """
+        prov = provider or self.provider or "claude"
         conn = connect()
         c = conn.cursor()
         c.execute(
-            "INSERT INTO usage_log (session_id, user_id, tokens_used, call_type, logged_at) VALUES (%s, %s, %s, %s, %s)",
-            (self.session_id, user_id, tokens, call_type, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            "INSERT INTO usage_log (session_id, user_id, provider, tokens_used, call_type, logged_at) VALUES (%s, %s, %s, %s, %s, %s)",
+            (self.session_id, user_id, prov, tokens, call_type, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         )
         conn.commit()
         conn.close()
@@ -73,5 +81,6 @@ class Budget:
             "total_budget":  self.total,
             "used":          used,
             "remaining":     remaining,
-            "percent_left":  round((remaining / self.total) * 100, 1) if self.total > 0 else 0
+            "percent_left":  round((remaining / self.total) * 100, 1) if self.total > 0 else 0,
+            "provider":      self.provider
         }

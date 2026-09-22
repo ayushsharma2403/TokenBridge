@@ -38,6 +38,11 @@ def setup():
         pass
 
     try:
+        c.execute("ALTER TABLE usage_log ADD COLUMN provider VARCHAR(50) DEFAULT 'claude' AFTER user_id")
+    except Exception:
+        pass
+
+    try:
         c.execute("ALTER TABLE tokenvault ADD COLUMN user_id INT AFTER session_id")
     except Exception:
         pass
@@ -61,12 +66,14 @@ def setup():
             id          INT AUTO_INCREMENT,
             session_id  VARCHAR(150) NOT NULL,
             user_id     INT,
+            provider    VARCHAR(50)  DEFAULT 'claude',
             tokens_used INT          NOT NULL,
             call_type   VARCHAR(50)  DEFAULT 'chat',
             logged_at   DATETIME     DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             INDEX idx_session_id (session_id),
-            INDEX idx_user_id    (user_id)
+            INDEX idx_user_id    (user_id),
+            INDEX idx_provider   (provider)
         )
     """)
 

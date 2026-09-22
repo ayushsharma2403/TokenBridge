@@ -8,12 +8,12 @@ from typing import Optional
 
 frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
 
-from config          import HOST, PORT, DEBUG, RESPONSE_BUFFER, APP_URL
+from config          import HOST, PORT, DEBUG, RESPONSE_BUFFER, APP_URL, CLAUDE_MODEL, OPENAI_MODEL, GEMINI_MODEL
 from database        import setup
 from models          import (
     ChatRequest, ChatResponse,
     PromptEngineerRequest, PromptEngineerResponse,
-    SessionInfo, SessionUpdateRequest, UsageSummary,
+    SessionInfo, SessionUpdateRequest, UsageSummary, ModelLimits,
     RegisterRequest, LoginRequest, PhoneAuthRequest,
     ForgotPasswordRequest, ResetPasswordRequest, AuthResponse
 )
@@ -22,7 +22,7 @@ from budget          import Budget
 from optimizer       import optimize
 from prompt_engineer import engineer_prompt
 from router          import call_api, detect_provider
-from tokenvault      import log, session_stats, global_stats
+from tokenvault      import log, session_stats, global_stats, COSTS
 from auth            import (
     register_user, login_user,
     get_user_from_token,
@@ -272,7 +272,8 @@ async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
     history.append({"role": "assistant", "content": reply})
     checkpoint.save(history, provider)
     user_id = user.get("user_id") if isinstance(user, dict) else None
-    budget.log_usage(total_tokens, call_type="chat", user_id=user_id)
+    budget.provider = provider
+    budget.log_usage(total_tokens, call_type="chat", user_id=user_id, provider=provider)
 
     log(
         session_id=req.session_id,
@@ -291,7 +292,8 @@ async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         tokens_this_call=total_tokens,
         tokens_remaining=budget.remaining(),
         total_used=budget.used_so_far(),
-        checkpoint_saved=True
+        checkpoint_saved=True,
+        provider=provider
     )
 
 
@@ -309,7 +311,8 @@ async def get_session(session_id: str, authorization: Optional[str] = Header(Non
     return SessionInfo(
         session_id=session_id,
         message_count=len(messages),
-        messages=messages
+        messages=messages,
+        provider=checkpoint.get_provider()
     )
 
 
@@ -321,11 +324,43 @@ async def update_session(session_id: str, req: SessionUpdateRequest, authorizati
     return {"message": "Session updated successfully.", "session_id": session_id, "message_count": len(req.messages)}
 
 
+# Provider Model Limits Metadata (Official context windows and rates)
+PROVIDER_MODEL_LIMITS = {
+    "claude": {
+        "model_name":  CLAUDE_MODEL,
+        "max_tokens":  200000,
+        "description": f"Anthropic Claude ({CLAUDE_MODEL}) - 200,000 token context window",
+        "input_rate":  COSTS.get("claude", {}).get("input", 0.00025),
+        "output_rate": COSTS.get("claude", {}).get("output", 0.00125)
+    },
+    "openai": {
+        "model_name":  OPENAI_MODEL,
+        "max_tokens":  128000,
+        "description": f"OpenAI GPT ({OPENAI_MODEL}) - 128,000 token context window",
+        "input_rate":  COSTS.get("openai", {}).get("input", 0.00015),
+        "output_rate": COSTS.get("openai", {}).get("output", 0.00060)
+    },
+    "gemini": {
+        "model_name":  GEMINI_MODEL,
+        "max_tokens":  1000000,
+        "description": f"Google Gemini ({GEMINI_MODEL}) - 1,000,000 token context window",
+        "input_rate":  COSTS.get("gemini", {}).get("input", 0.0),
+        "output_rate": COSTS.get("gemini", {}).get("output", 0.0)
+    }
+}
+
+
+@app.get("/models/limits")
+async def get_models_limits():
+    """Returns official max token budget and model details for each provider."""
+    return PROVIDER_MODEL_LIMITS
+
+
 @app.get("/usage/{session_id}", response_model=UsageSummary)
-async def get_usage(session_id: str, token_budget: int = 50000,
+async def get_usage(session_id: str, token_budget: int = 50000, provider: Optional[str] = None,
                     authorization: Optional[str] = Header(None)):
     get_current_user(authorization)
-    budget = Budget(session_id, token_budget)
+    budget = Budget(session_id, token_budget, provider=provider)
     return UsageSummary(**budget.summary())
 
 
