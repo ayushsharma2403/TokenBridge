@@ -473,26 +473,451 @@ function renderSessions() {
   if (!list) { return; }
   list.innerHTML = '';
 
+  // Sort sessions: pinned first, then regular unarchived sessions
+  var activeSessions = sessions.filter(function(s) { return !s.archived; });
+
   var badge = document.getElementById('session-count-badge');
   if (badge) {
-    badge.textContent = sessions.length > 0 ? ('(' + sessions.length + ')') : '';
+    badge.textContent = activeSessions.length > 0 ? ('(' + activeSessions.length + ')') : '';
   }
 
-  if (sessions.length === 0) {
+  // Update Archived badge
+  var archivedSessions = sessions.filter(function(s) { return !!s.archived; });
+  var archivedBadge = document.getElementById('archived-count-badge');
+  var archivedBtn = document.getElementById('archived-chats-btn');
+  if (archivedBadge) {
+    archivedBadge.textContent = archivedSessions.length > 0 ? archivedSessions.length : '';
+    archivedBadge.style.display = archivedSessions.length > 0 ? 'inline-block' : 'none';
+  }
+  if (archivedBtn) {
+    archivedBtn.style.display = archivedSessions.length > 0 ? 'inline-flex' : 'none';
+  }
+
+  if (activeSessions.length === 0) {
     list.innerHTML = '<div style="font-size:12px;color:var(--text-sub);padding:8px 4px;">No chats yet</div>';
     return;
   }
 
-  for (var i = 0; i < sessions.length; i++) {
-    var s   = sessions[i];
+  // Pinned items first, keeping recency order
+  var sorted = activeSessions.slice().sort(function(a, b) {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return 0;
+  });
+
+  for (var i = 0; i < sorted.length; i++) {
+    var s   = sorted[i];
     var div = document.createElement('div');
-    div.className = 'session-item' + (s.id === sessionId ? ' active' : '');
+    div.className = 'session-item' + (s.id === sessionId ? ' active' : '') + (s.pinned ? ' pinned' : '');
+    div.setAttribute('data-session-id', s.id);
+
+    var pinBadge = s.pinned ? '<span class="session-pinned-icon" title="Pinned chat">&#128204;</span>' : '';
+
     div.innerHTML =
       '<span class="session-dot"></span>' +
-      '<span class="session-title-text">' + (s.title || 'Chat') + '</span>' +
-      '<button type="button" class="session-del-btn" title="Delete chat" onclick="deleteSessionHandler(event, \'' + s.id + '\')">&#128465;</button>';
-    div.onclick   = (function(id) { return function() { loadSession(id); }; })(s.id);
+      pinBadge +
+      '<span class="session-title-text">' + escapeHtml(s.title || 'Chat') + '</span>' +
+      '<button type="button" class="session-kebab-btn" title="More options" aria-label="Chat options" onclick="openSessionKebabMenu(event, \'' + s.id + '\')">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">' +
+          '<circle cx="12" cy="5" r="2.2"></circle>' +
+          '<circle cx="12" cy="12" r="2.2"></circle>' +
+          '<circle cx="12" cy="19" r="2.2"></circle>' +
+        '</svg>' +
+      '</button>';
+
+    div.onclick = (function(id) {
+      return function(e) {
+        // Prevent loading session if click originated from kebab button or menu
+        if (e.target.closest && (e.target.closest('.session-kebab-btn') || e.target.closest('.session-kebab-menu'))) {
+          return;
+        }
+        loadSession(id);
+      };
+    })(s.id);
+
     list.appendChild(div);
+  }
+}
+
+// -------------------------------------------------------
+// Session Kebab Dropdown & Dialogs
+// -------------------------------------------------------
+var currentKebabSessionId = null;
+
+function closeSessionKebabMenu() {
+  var menu = document.getElementById('session-kebab-menu');
+  if (menu) {
+    menu.remove();
+  }
+  var openItems = document.querySelectorAll('.session-item.menu-open');
+  for (var i = 0; i < openItems.length; i++) {
+    openItems[i].classList.remove('menu-open');
+  }
+  currentKebabSessionId = null;
+}
+
+// Global click outside to dismiss kebab menu
+document.addEventListener('click', function(e) {
+  var menu = document.getElementById('session-kebab-menu');
+  if (menu && !menu.contains(e.target) && !e.target.closest('.session-kebab-btn')) {
+    closeSessionKebabMenu();
+  }
+});
+
+function openSessionKebabMenu(event, id) {
+  if (event && event.stopPropagation) {
+    event.stopPropagation();
+  }
+  var btn = event.currentTarget || event.target.closest('.session-kebab-btn');
+
+  // If already open on the same session, toggle it off
+  if (currentKebabSessionId === id) {
+    closeSessionKebabMenu();
+    return;
+  }
+
+  closeSessionKebabMenu();
+  currentKebabSessionId = id;
+
+  var session = null;
+  for (var i = 0; i < sessions.length; i++) {
+    if (sessions[i].id === id) {
+      session = sessions[i];
+      break;
+    }
+  }
+  if (!session) return;
+
+  var parentItem = btn ? btn.closest('.session-item') : null;
+  if (parentItem) {
+    parentItem.classList.add('menu-open');
+  }
+
+  var isPinned = !!session.pinned;
+
+  var menu = document.createElement('div');
+  menu.id = 'session-kebab-menu';
+  menu.className = 'session-kebab-menu';
+
+  menu.innerHTML =
+    '<button type="button" class="session-menu-item" onclick="togglePinSessionHandler(\'' + id + '\')">' +
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<line x1="12" y1="17" x2="12" y2="22"></line>' +
+        '<path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>' +
+      '</svg>' +
+      '<span>' + (isPinned ? 'Unpin chat' : 'Pin chat') + '</span>' +
+    '</button>' +
+    '<button type="button" class="session-menu-item" onclick="renameSessionDialog(\'' + id + '\')">' +
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M12 20h9"></path>' +
+        '<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>' +
+      '</svg>' +
+      '<span>Rename</span>' +
+    '</button>' +
+    '<button type="button" class="session-menu-item" onclick="shareSessionDialog(\'' + id + '\')">' +
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<circle cx="18" cy="5" r="3"></circle>' +
+        '<circle cx="6" cy="12" r="3"></circle>' +
+        '<circle cx="18" cy="19" r="3"></circle>' +
+        '<line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>' +
+        '<line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>' +
+      '</svg>' +
+      '<span>Share</span>' +
+    '</button>' +
+    '<button type="button" class="session-menu-item" onclick="archiveSessionDialog(\'' + id + '\')">' +
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<polyline points="21 8 21 21 3 21 3 8"></polyline>' +
+        '<rect x="1" y="3" width="22" height="5"></rect>' +
+        '<line x1="10" y1="12" x2="14" y2="12"></line>' +
+      '</svg>' +
+      '<span>Archive chat</span>' +
+    '</button>' +
+    '<div class="session-menu-divider"></div>' +
+    '<button type="button" class="session-menu-item danger" onclick="deleteSessionDialog(\'' + id + '\')">' +
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<polyline points="3 6 5 6 21 6"></polyline>' +
+        '<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>' +
+        '<line x1="10" y1="11" x2="10" y2="17"></line>' +
+        '<line x1="14" y1="11" x2="14" y2="17"></line>' +
+      '</svg>' +
+      '<span>Delete</span>' +
+    '</button>';
+
+  document.body.appendChild(menu);
+
+  // Smart positioning next to kebab button
+  if (btn) {
+    var rect = btn.getBoundingClientRect();
+    var top = rect.bottom + 4;
+    var left = rect.left;
+
+    // Prevent overflowing bottom or right viewport
+    var menuWidth = 175;
+    var menuHeight = 190;
+    if (left + menuWidth > window.innerWidth - 10) {
+      left = window.innerWidth - menuWidth - 10;
+    }
+    if (top + menuHeight > window.innerHeight - 10) {
+      top = rect.top - menuHeight - 4;
+    }
+
+    menu.style.top = Math.max(10, top) + 'px';
+    menu.style.left = Math.max(10, left) + 'px';
+  }
+}
+
+// 1. PIN / UNPIN CHAT
+function togglePinSessionHandler(id) {
+  closeSessionKebabMenu();
+  for (var i = 0; i < sessions.length; i++) {
+    if (sessions[i].id === id) {
+      sessions[i].pinned = !sessions[i].pinned;
+      break;
+    }
+  }
+  localStorage.setItem('tb_sessions', JSON.stringify(sessions));
+  renderSessions();
+}
+
+// 2. RENAME CHAT DIALOG
+function renameSessionDialog(id) {
+  closeSessionKebabMenu();
+  var session = null;
+  for (var i = 0; i < sessions.length; i++) {
+    if (sessions[i].id === id) { session = sessions[i]; break; }
+  }
+  if (!session) return;
+
+  showAppDialog({
+    title: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg> Rename Chat',
+    bodyHtml: '<label style="display:block;font-size:12px;color:var(--text-sub);margin-bottom:6px;">Chat Name</label>' +
+              '<input type="text" id="rename-session-input" class="tb-dialog-input" value="' + escapeHtml(session.title || '') + '" maxlength="60" />',
+    confirmText: 'Save',
+    confirmClass: 'primary',
+    onConfirm: function() {
+      var input = document.getElementById('rename-session-input');
+      if (input) {
+        var newTitle = input.value.trim();
+        if (newTitle) {
+          session.title = newTitle;
+          localStorage.setItem('tb_sessions', JSON.stringify(sessions));
+          renderSessions();
+          if (sessionId === id) {
+            document.getElementById('chat-title').textContent = newTitle;
+          }
+        }
+      }
+    }
+  });
+
+  setTimeout(function() {
+    var input = document.getElementById('rename-session-input');
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }, 50);
+}
+
+// 3. SHARE CHAT DIALOG
+function shareSessionDialog(id) {
+  closeSessionKebabMenu();
+  var session = null;
+  for (var i = 0; i < sessions.length; i++) {
+    if (sessions[i].id === id) { session = sessions[i]; break; }
+  }
+  var shareUrl = window.location.origin + window.location.pathname + '?session=' + encodeURIComponent(id);
+
+  showAppDialog({
+    title: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg> Share Chat',
+    bodyHtml: '<p style="font-size:13px;color:var(--text-sub);margin-bottom:12px;">Share this conversation link with your team or collaborators:</p>' +
+              '<input type="text" id="share-session-url" class="tb-dialog-input" value="' + escapeHtml(shareUrl) + '" readonly />',
+    confirmText: 'Copy Link',
+    confirmClass: 'primary',
+    onConfirm: function() {
+      var input = document.getElementById('share-session-url');
+      if (input) {
+        input.select();
+        navigator.clipboard.writeText(input.value).then(function() {
+          alert('Chat share link copied to clipboard!');
+        }).catch(function() {
+          document.execCommand('copy');
+          alert('Chat share link copied to clipboard!');
+        });
+      }
+    }
+  });
+}
+
+// 4. ARCHIVE CHAT DIALOG
+function archiveSessionDialog(id) {
+  closeSessionKebabMenu();
+  showAppDialog({
+    title: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg> Archive Chat',
+    bodyHtml: '<p style="font-size:13.5px;color:var(--text-sub);line-height:1.5;">Are you sure you want to archive this chat? You can still access archived conversations anytime.</p>',
+    confirmText: 'Archive',
+    confirmClass: 'primary',
+    onConfirm: function() {
+      for (var i = 0; i < sessions.length; i++) {
+        if (sessions[i].id === id) {
+          sessions[i].archived = true;
+          break;
+        }
+      }
+      localStorage.setItem('tb_sessions', JSON.stringify(sessions));
+      if (id === sessionId) {
+        newChat();
+      } else {
+        renderSessions();
+      }
+    }
+  });
+}
+
+// Open Archived Chats Dialog
+function openArchivedChatsDialog() {
+  var archivedList = sessions.filter(function(s) { return !!s.archived; });
+
+  var listHtml = '';
+  if (archivedList.length === 0) {
+    listHtml = '<div style="text-align:center;padding:24px 0;color:var(--text-sub);font-size:13px;">No archived chats found.</div>';
+  } else {
+    listHtml = '<div style="max-height:300px;overflow-y:auto;padding-right:4px;">';
+    for (var i = 0; i < archivedList.length; i++) {
+      var s = archivedList[i];
+      listHtml +=
+        '<div class="archived-item">' +
+          '<span class="archived-item-title" title="' + escapeHtml(s.title || 'Chat') + '">' + escapeHtml(s.title || 'Chat') + '</span>' +
+          '<div class="archived-item-actions">' +
+            '<button type="button" class="archived-act-btn" onclick="unarchiveSession(\'' + s.id + '\')">' +
+              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>' +
+              '<span>Restore</span>' +
+            '</button>' +
+            '<button type="button" class="archived-act-btn danger" onclick="deleteArchivedSession(\'' + s.id + '\')">' +
+              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>' +
+              '<span>Delete</span>' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+    }
+    listHtml += '</div>';
+  }
+
+  showAppDialog({
+    title: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg> Archived Chats',
+    bodyHtml: listHtml,
+    confirmText: 'Done',
+    confirmClass: 'primary',
+    onConfirm: function() {}
+  });
+}
+
+function unarchiveSession(id) {
+  for (var i = 0; i < sessions.length; i++) {
+    if (sessions[i].id === id) {
+      delete sessions[i].archived;
+      break;
+    }
+  }
+  localStorage.setItem('tb_sessions', JSON.stringify(sessions));
+  renderSessions();
+  openArchivedChatsDialog(); // Refresh dialog
+}
+
+function deleteArchivedSession(id) {
+  if (!confirm('Permanently delete this archived chat?')) return;
+  sessions = sessions.filter(function(s) { return s.id !== id; });
+  localStorage.setItem('tb_sessions', JSON.stringify(sessions));
+  authFetch('/session/' + id, { method: 'DELETE' }).catch(function() {});
+  renderSessions();
+  openArchivedChatsDialog(); // Refresh dialog
+}
+
+// 5. DELETE CHAT DIALOG
+function deleteSessionDialog(id) {
+  closeSessionKebabMenu();
+  showAppDialog({
+    title: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--status-rose)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg> Delete Chat',
+    bodyHtml: '<p style="font-size:13.5px;color:var(--text-sub);line-height:1.5;">Are you sure you want to permanently delete this chat? This action cannot be undone.</p>',
+    confirmText: 'Delete',
+    confirmClass: 'danger',
+    onConfirm: function() {
+      // Remove from localStorage
+      sessions = sessions.filter(function(s) { return s.id !== id; });
+      localStorage.setItem('tb_sessions', JSON.stringify(sessions));
+
+      // Request backend deletion
+      authFetch('/session/' + id, { method: 'DELETE' })
+        .catch(function() {});
+
+      // If deleted current active session, reset to new chat
+      if (id === sessionId) {
+        newChat();
+      } else {
+        renderSessions();
+      }
+    }
+  });
+}
+
+// Reusable Custom Dialog Box
+function showAppDialog(opts) {
+  closeAppDialog();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'tb-active-dialog';
+  overlay.className = 'tb-dialog-overlay';
+
+  overlay.innerHTML =
+    '<div class="tb-dialog-box" onclick="event.stopPropagation()">' +
+      '<div class="tb-dialog-header">' +
+        '<div class="tb-dialog-title">' + opts.title + '</div>' +
+        '<button type="button" class="tb-dialog-close" onclick="closeAppDialog()" aria-label="Close dialog">' +
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+        '</button>' +
+      '</div>' +
+      '<div class="tb-dialog-body">' +
+        opts.bodyHtml +
+      '</div>' +
+      '<div class="tb-dialog-actions">' +
+        '<button type="button" class="tb-dialog-btn cancel" onclick="closeAppDialog()">Cancel</button>' +
+        '<button type="button" class="tb-dialog-btn ' + (opts.confirmClass || 'primary') + '" id="tb-dialog-confirm-btn">' + (opts.confirmText || 'Confirm') + '</button>' +
+      '</div>' +
+    '</div>';
+
+  overlay.onclick = function(e) {
+    if (e.target === overlay) {
+      closeAppDialog();
+    }
+  };
+
+  document.body.appendChild(overlay);
+
+  var confirmBtn = document.getElementById('tb-dialog-confirm-btn');
+  if (confirmBtn) {
+    confirmBtn.onclick = function() {
+      if (typeof opts.onConfirm === 'function') {
+        opts.onConfirm();
+      }
+      closeAppDialog();
+    };
+  }
+
+  // Handle Enter key for confirm
+  overlay.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (confirmBtn) confirmBtn.click();
+    } else if (e.key === 'Escape') {
+      closeAppDialog();
+    }
+  });
+}
+
+function closeAppDialog() {
+  var d = document.getElementById('tb-active-dialog');
+  if (d) {
+    d.remove();
   }
 }
 
@@ -500,24 +925,7 @@ function deleteSessionHandler(event, id) {
   if (event && event.stopPropagation) {
     event.stopPropagation();
   }
-  if (!confirm('Are you sure you want to delete this chat?')) {
-    return;
-  }
-
-  // Remove from localStorage
-  sessions = sessions.filter(function(s) { return s.id !== id; });
-  localStorage.setItem('tb_sessions', JSON.stringify(sessions));
-
-  // Request backend deletion
-  authFetch('/session/' + id, { method: 'DELETE' })
-    .catch(function() {});
-
-  // If deleted current active session, reset to new chat
-  if (id === sessionId) {
-    newChat();
-  } else {
-    renderSessions();
-  }
+  deleteSessionDialog(id);
 }
 
 function loadSession(id) {

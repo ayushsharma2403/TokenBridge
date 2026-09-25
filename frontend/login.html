@@ -21,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=6.3">
+  <link rel="stylesheet" href="style.css?v=7.0">
 </head>
 <body class="auth-body">
   <!-- Optical Directional Sheen Layer -->
@@ -82,7 +82,24 @@
       <button class="back-link" onclick="showStep('main')">← Back</button>
       <div class="modal-title">Enter phone number</div>
       <div class="modal-sub">We will send you a 6-digit OTP.</div>
-      <input class="email-input" type="tel" id="phone-input" placeholder="+91 98765 43210">
+      <div class="phone-input-group">
+        <div class="country-code-wrap" id="country-code-wrap">
+          <button type="button" class="country-code-btn" id="country-code-btn" onclick="toggleCountryDropdown(event)" aria-label="Select country code">
+            <span class="country-flag" id="selected-flag">🇮🇳</span>
+            <span class="country-dial" id="selected-dial">+91</span>
+            <svg class="country-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="country-dropdown-menu" id="country-dropdown-menu" style="display:none;">
+            <div class="country-search-box">
+              <input type="text" id="country-search-input" placeholder="Search country..." oninput="filterCountryList(this.value)">
+            </div>
+            <div class="country-list" id="country-list"></div>
+          </div>
+        </div>
+        <input class="email-input phone-number-field" type="tel" id="phone-input" placeholder="98765 43210" oninput="formatPhoneNumberInput(this)" onkeydown="if(event.key==='Enter')sendPhoneOTP()">
+      </div>
       <div id="recaptcha-container"></div>
       <button class="continue-btn" id="send-otp-btn" onclick="sendPhoneOTP()">Send OTP</button>
     </div>

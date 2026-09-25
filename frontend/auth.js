@@ -119,29 +119,160 @@ function handleGoogleLogin() {
   .catch(function() { showMsg("Cannot connect to server.", "error"); });
 }
 
+var COUNTRIES = [
+  { name: "India", code: "IN", dial: "+91", flag: "🇮🇳", placeholder: "98765 43210" },
+  { name: "United States", code: "US", dial: "+1", flag: "🇺🇸", placeholder: "202 555 0123" },
+  { name: "United Kingdom", code: "GB", dial: "+44", flag: "🇬🇧", placeholder: "7911 123456" },
+  { name: "Canada", code: "CA", dial: "+1", flag: "🇨🇦", placeholder: "416 555 0199" },
+  { name: "Australia", code: "AU", dial: "+61", flag: "🇦🇺", placeholder: "412 345 678" },
+  { name: "Germany", code: "DE", dial: "+49", flag: "🇩🇪", placeholder: "1512 3456789" },
+  { name: "France", code: "FR", dial: "+33", flag: "🇫🇷", placeholder: "6 12 34 56 78" },
+  { name: "United Arab Emirates", code: "AE", dial: "+971", flag: "🇦🇪", placeholder: "50 123 4567" },
+  { name: "Singapore", code: "SG", dial: "+65", flag: "🇸🇬", placeholder: "8123 4567" },
+  { name: "Japan", code: "JP", dial: "+81", flag: "🇯🇵", placeholder: "90 1234 5678" },
+  { name: "Brazil", code: "BR", dial: "+55", flag: "🇧🇷", placeholder: "11 91234 5678" },
+  { name: "Russia", code: "RU", dial: "+7", flag: "🇷🇺", placeholder: "912 345 67 89" },
+  { name: "China", code: "CN", dial: "+86", flag: "🇨🇳", placeholder: "138 0013 8000" },
+  { name: "Saudi Arabia", code: "SA", dial: "+966", flag: "🇸🇦", placeholder: "50 123 4567" },
+  { name: "Spain", code: "ES", dial: "+34", flag: "🇪🇸", placeholder: "612 34 56 78" },
+  { name: "Italy", code: "IT", dial: "+39", flag: "🇮🇹", placeholder: "312 345 6789" },
+  { name: "Netherlands", code: "NL", dial: "+31", flag: "🇳🇱", placeholder: "6 12345678" },
+  { name: "South Africa", code: "ZA", dial: "+27", flag: "🇿🇦", placeholder: "71 123 4567" },
+  { name: "Nigeria", code: "NG", dial: "+234", flag: "🇳🇬", placeholder: "802 123 4567" },
+  { name: "Indonesia", code: "ID", dial: "+62", flag: "🇮🇩", placeholder: "812 3456 7890" }
+];
+
+var selectedCountry = COUNTRIES[0];
+
+function initCountrySelector() {
+  renderCountryList(COUNTRIES);
+
+  document.addEventListener("click", function(e) {
+    var wrap = document.getElementById("country-code-wrap");
+    var menu = document.getElementById("country-dropdown-menu");
+    if (wrap && menu && !wrap.contains(e.target)) {
+      menu.style.display = "none";
+      wrap.classList.remove("open");
+    }
+  });
+}
+
+function renderCountryList(list) {
+  var container = document.getElementById("country-list");
+  if (!container) return;
+  container.innerHTML = "";
+
+  for (var i = 0; i < list.length; i++) {
+    var c = list[i];
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "country-item" + (c.code === selectedCountry.code ? " active" : "");
+    btn.innerHTML =
+      '<div class="country-item-left">' +
+        '<span>' + c.flag + '</span>' +
+        '<span>' + c.name + '</span>' +
+      '</div>' +
+      '<span class="country-item-dial">' + c.dial + '</span>';
+    btn.onclick = (function(country) {
+      return function() { selectCountry(country); };
+    })(c);
+    container.appendChild(btn);
+  }
+}
+
+function toggleCountryDropdown(e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  var wrap = document.getElementById("country-code-wrap");
+  var menu = document.getElementById("country-dropdown-menu");
+  if (!menu || !wrap) return;
+
+  var isVisible = menu.style.display === "block";
+  if (isVisible) {
+    menu.style.display = "none";
+    wrap.classList.remove("open");
+  } else {
+    menu.style.display = "block";
+    wrap.classList.add("open");
+    var search = document.getElementById("country-search-input");
+    if (search) {
+      search.value = "";
+      renderCountryList(COUNTRIES);
+      search.focus();
+    }
+  }
+}
+
+function selectCountry(country) {
+  selectedCountry = country;
+  var flag = document.getElementById("selected-flag");
+  var dial = document.getElementById("selected-dial");
+  var input = document.getElementById("phone-input");
+  var wrap = document.getElementById("country-code-wrap");
+  var menu = document.getElementById("country-dropdown-menu");
+
+  if (flag) flag.textContent = country.flag;
+  if (dial) dial.textContent = country.dial;
+  if (input) {
+    input.placeholder = country.placeholder;
+    input.focus();
+  }
+  if (menu) menu.style.display = "none";
+  if (wrap) wrap.classList.remove("open");
+}
+
+function filterCountryList(query) {
+  var q = (query || "").trim().toLowerCase();
+  var filtered = COUNTRIES.filter(function(c) {
+    return c.name.toLowerCase().indexOf(q) !== -1 ||
+           c.dial.indexOf(q) !== -1 ||
+           c.code.toLowerCase().indexOf(q) !== -1;
+  });
+  renderCountryList(filtered);
+}
+
+function formatPhoneNumberInput(input) {
+  var val = input.value.replace(/\D/g, "");
+  if (val.length > 13) {
+    val = val.substring(0, 13);
+  }
+  var formatted = val;
+  if (val.length > 5) {
+    formatted = val.substring(0, 5) + " " + val.substring(5);
+  }
+  input.value = formatted;
+}
+
 function sendPhoneOTP() {
-  var raw = document.getElementById("phone-input").value.trim();
-  var phone = raw.replace(/\s/g, '');
-  if (phone.charAt(0) !== '+') { phone = '+' + phone; }
-  if (!phone || phone.length < 10) {
-    showMsg("Enter phone with country code. Example: +91 98765 43210", "error");
+  var input = document.getElementById("phone-input");
+  var digits = input.value.replace(/\D/g, "");
+
+  if (!digits || digits.length < 7) {
+    showMsg("Please enter a valid phone number for " + selectedCountry.name + ".", "error");
+    input.focus();
     return;
   }
+
+  var fullPhone = selectedCountry.dial + digits;
   var btn = document.getElementById("send-otp-btn");
   btn.disabled = true;
   btn.textContent = "Sending...";
+
+  // Quick invisible reCAPTCHA (zero clicks/puzzle needed, runs instantly in background)
   if (!window.recaptchaVerifier) {
     window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier("recaptcha-container", {
-      size: "normal",
+      size: "invisible",
       callback: function() {}
     });
   }
-  fbAuth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
+
+  fbAuth.signInWithPhoneNumber(fullPhone, window.recaptchaVerifier)
   .then(function(result) {
     window.confirmationResult = result;
-    document.getElementById("otp-sent-to").textContent = "OTP sent to " + phone;
+    document.getElementById("otp-sent-to").textContent = "OTP sent to " + selectedCountry.flag + " " + fullPhone;
     showStep("otp");
     document.getElementById("otp-1").focus();
+    btn.disabled = false;
+    btn.textContent = "Send OTP";
   })
   .catch(function(error) {
     showMsg("Failed to send OTP: " + error.message, "error");
@@ -153,6 +284,7 @@ function sendPhoneOTP() {
     }
   });
 }
+
 
 function otpNext(current, nextId) {
   if (current.value.length >= 1 && nextId) {
@@ -224,5 +356,6 @@ function submitForgot() {
   }
   document.documentElement.setAttribute("data-theme", t);
   updateAuthThemeIcon(t);
+  initCountrySelector();
   if (localStorage.getItem("tb_token")) window.location.href = "index.html";
 })();
