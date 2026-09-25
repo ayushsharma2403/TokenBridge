@@ -187,8 +187,35 @@ async def check_email_exists(req: EmailCheck):
 
 
 # -------------------------------------------------------
-# File Upload
+# File Upload & Generation
 # -------------------------------------------------------
+
+@app.get("/api/files/download/{filename}")
+async def download_generated_file(filename: str):
+    from file_generator import GENERATED_DIR
+    file_path = os.path.join(GENERATED_DIR, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found or has expired.")
+
+    content_types = {
+        ".pdf": "application/pdf",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg"
+    }
+    _, ext = os.path.splitext(filename)
+    media_type = content_types.get(ext.lower(), "application/octet-stream")
+
+    return FileResponse(
+        file_path,
+        media_type=media_type,
+        filename=filename,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
+    )
+
 
 @app.post("/upload")
 async def upload_file(
@@ -244,6 +271,26 @@ async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
     optimized, estimated_tokens = optimize(history, req.api_key, efficiency=efficiency)
     tokens_saved                = max(0, tokens_before - estimated_tokens)
 
+    # Real-time search & factual grounding injection if query seeks latest/current info
+    try:
+        from realtime_grounding import needs_realtime_context, get_realtime_context
+        if needs_realtime_context(req.message):
+            live_context = get_realtime_context(req.message)
+            if live_context and optimized:
+                # Augment the latest user message with verified live context
+                last_user_idx = len(optimized) - 1
+                while last_user_idx >= 0 and optimized[last_user_idx].get("role") != "user":
+                    last_user_idx -= 1
+                if last_user_idx >= 0:
+                    orig_content = optimized[last_user_idx]["content"]
+                    optimized[last_user_idx]["content"] = (
+                        f"{orig_content}\n\n"
+                        f"[VERIFIED REAL-TIME INFORMATION & CONTEXT]:\n{live_context}\n"
+                        f"Please synthesize the response using this verified real-time context."
+                    )
+    except Exception as ground_err:
+        print(f"[RealTimeGrounding] Notice: {ground_err}")
+
     if not budget.has_enough(estimated_tokens + RESPONSE_BUFFER):
         checkpoint.save(history, req.provider)
         raise HTTPException(
@@ -269,6 +316,30 @@ async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=500, detail=f"AI API error: {str(e)}")
 
     total_tokens = input_tokens + output_tokens
+
+    # Check if the user asked to generate a file (image, pdf, docx, pptx, xlsx, etc.)
+    try:
+        from file_generator import process_generation_request
+        file_res = process_generation_request(req.message)
+        if file_res and file_res.get("success"):
+            fname = file_res.get("filename")
+            ftype = file_res.get("file_type", "file").upper()
+            durl = file_res.get("download_url")
+            preview_url = file_res.get("preview_url")
+
+            download_card = (
+                f"\n\n---\n"
+                f"### 📥 Generated {ftype} File Ready\n"
+                f"Your requested **{fname}** has been prepared and formatted.\n\n"
+            )
+            if preview_url and ftype == "IMAGE":
+                download_card += f"![{fname}]({preview_url})\n\n"
+            download_card += f"[⬇️ Download {fname}]({durl})\n"
+
+            reply = reply + download_card
+    except Exception as gen_err:
+        print(f"[FileGen] Auto-generation hook error: {gen_err}")
+
     history.append({"role": "assistant", "content": reply})
     checkpoint.save(history, provider)
     user_id = user.get("user_id") if isinstance(user, dict) else None

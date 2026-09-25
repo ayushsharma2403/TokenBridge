@@ -17,9 +17,16 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=6.3">
 </head>
 <body class="auth-body">
+  <!-- Optical Directional Sheen Layer -->
+  <div class="optical-refraction-sheen"></div>
+
   <div class="orb-container">
     <div class="orb orb-1"></div>
     <div class="orb orb-2"></div>
@@ -56,8 +63,8 @@
       <div class="email-shown" id="pwd-email"></div>
       <input class="email-input" type="password" id="pwd-input" placeholder="Password" onkeydown="if(event.key===&apos;Enter&apos;)submitPassword()">
       <a href="#" class="forgot-link" onclick="showStep('forgot')">Forgot password?</a>
-      <label style="display:flex;align-items:center;gap:8px;color:#888;font-size:13px;margin-bottom:16px;cursor:pointer">
-        <input type="checkbox" id="remember-me" style="accent-color:#6d28d9"> Remember me for 30 days
+      <label style="display:flex;align-items:center;gap:8px;color:var(--text-sub);font-size:13px;margin-bottom:16px;cursor:pointer">
+        <input type="checkbox" id="remember-me" style="accent-color:var(--accent)"> Remember me for 30 days
       </label>
       <button class="continue-btn" onclick="submitPassword()">Continue</button>
     </div>
@@ -93,8 +100,8 @@
         <input class="otp-input" type="text" maxlength="1" id="otp-6" oninput="otpNext(this,null)">
       </div>
       <button class="continue-btn" onclick="verifyOTP()">Verify OTP</button>
-      <p style="text-align:center;font-size:12px;color:#888;margin-top:12px;">
-        Did not receive? <a href="#" style="color:#6d28d9" onclick="showStep('phone')">Resend</a>
+      <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:12px;">
+        Did not receive? <a href="#" style="color:var(--accent)" onclick="showStep('phone')">Resend</a>
       </p>
     </div>
 
