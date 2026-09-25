@@ -17,9 +17,25 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="style.css?v=5.3">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=6.4">
 </head>
 <body>
+
+  <!-- Optical Directional Sheen Layer -->
+  <div class="optical-refraction-sheen"></div>
+  <!-- SVG Global Filter / Gradient Defs -->
+  <svg width="0" height="0" style="position: absolute;">
+    <defs>
+      <linearGradient id="chartreuseGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#c6f830"></stop>
+        <stop offset="100%" stop-color="#a3e635"></stop>
+      </linearGradient>
+    </defs>
+  </svg>
 
   <div class="orb-container">
     <div class="orb orb-1"></div>
@@ -320,8 +336,9 @@
             </div>
           </button>
           <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send message (Enter)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
             </svg>
           </button>
           <button class="stop-btn" id="stop-btn" onclick="stopGeneration()" title="Stop generation" style="display:none;">
@@ -340,6 +357,6 @@
   <!-- Markdown Rendering & Sanitization (ChatGPT-like rich formatting) -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
-  <script src="app.js?v=5.4"></script>
+  <script src="app.js?v=5.5"></script>
 </body>
 </html>

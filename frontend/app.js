@@ -38,6 +38,21 @@ window.onload = function() {
   setupPromptEngineerListeners();
 
   document.getElementById('session-id-display').textContent = sessionId;
+
+  // Real-time subtle ambient light pointer tracking (throttled via requestAnimationFrame)
+  var lightTicking = false;
+  window.addEventListener('mousemove', function(e) {
+    if (!lightTicking) {
+      window.requestAnimationFrame(function() {
+        var xPct = (e.clientX / window.innerWidth * 100).toFixed(1) + '%';
+        var yPct = (e.clientY / window.innerHeight * 100).toFixed(1) + '%';
+        document.documentElement.style.setProperty('--mouse-x', xPct);
+        document.documentElement.style.setProperty('--mouse-y', yPct);
+        lightTicking = false;
+      });
+      lightTicking = true;
+    }
+  }, { passive: true });
 };
 
 function checkAuth() {
@@ -678,6 +693,8 @@ function formatContent(text) {
   // Inline code & bold & lists
   escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
   escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  escaped = escaped.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
+  escaped = escaped.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
   escaped = escaped.replace(/^\s*[-*]\s+(.*)$/gm, '<li>$1</li>');
   escaped = escaped.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
   escaped = escaped.replace(/\n/g, '<br>');
@@ -1029,13 +1046,86 @@ function showTyping() {
   avatar.innerHTML = getModelLogoSvg(provider);
 
   var bubble = document.createElement('div');
-  bubble.className = 'message-bubble';
-  bubble.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  bubble.className = 'message-bubble typing-bubble';
+
+  // Render pure HorizonX Orb Breathing Canvas Ring
+  bubble.innerHTML =
+    '<div class="orb-breathing-wrapper">' +
+      '<canvas class="orb-breathing-canvas" width="64" height="64"></canvas>' +
+    '</div>';
 
   wrap.appendChild(avatar);
   wrap.appendChild(bubble);
   area.appendChild(wrap);
   area.scrollTop = area.scrollHeight;
+
+  // Initialize Canvas animation
+  var canvas = bubble.querySelector('.orb-breathing-canvas');
+  if (canvas) {
+    initOrbBreathingCanvas(canvas);
+  }
+}
+
+function initOrbBreathingCanvas(canvas) {
+  var ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  var animId;
+  var startTime = performance.now();
+  var numRays = 44;
+
+  function render(now) {
+    if (!canvas.isConnected) {
+      cancelAnimationFrame(animId);
+      return;
+    }
+
+    var elapsed = (now - startTime) / 1000;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    var cx = canvas.width / 2;
+    var cy = canvas.height / 2;
+    var baseRadius = 18.5;
+
+    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+
+    for (var i = 0; i < numRays; i++) {
+      var angle = (i * 2 * Math.PI) / numRays;
+
+      // Traveling breathing ripple around the ring circumference
+      var wave = Math.sin(elapsed * 2.6 - angle * 2.2);
+      var waveNorm = (wave + 1) / 2; // 0 to 1
+
+      // Radial wobble and ray extension matching the HorizonX orb
+      var rInner = baseRadius + waveNorm * 2.0;
+      var rayLength = 3.2 + waveNorm * 4.2;
+      var rOuter = rInner + rayLength;
+
+      var x1 = cx + Math.cos(angle) * rInner;
+      var y1 = cy + Math.sin(angle) * rInner;
+      var x2 = cx + Math.cos(angle) * rOuter;
+      var y2 = cy + Math.sin(angle) * rOuter;
+
+      // Dynamic opacity
+      var alpha = 0.22 + waveNorm * 0.78;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 1.9;
+
+      if (isLight) {
+        ctx.strokeStyle = 'rgba(15, 23, 42, ' + alpha.toFixed(3) + ')';
+      } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, ' + alpha.toFixed(3) + ')';
+      }
+      ctx.stroke();
+    }
+
+    animId = requestAnimationFrame(render);
+  }
+
+  animId = requestAnimationFrame(render);
 }
 
 function removeTyping() {

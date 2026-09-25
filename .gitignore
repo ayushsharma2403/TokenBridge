@@ -25,4 +25,6 @@ Thumbs.db
 
 # Logs
 *.log
-backend/firebase_key.json
+
+# Generated Files
+generated_files/
