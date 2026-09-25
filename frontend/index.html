@@ -21,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=6.4">
+  <link rel="stylesheet" href="style.css?v=6.6">
 </head>
 <body>
 
@@ -136,8 +136,16 @@
         <!-- Recent Chats / Sessions Area (Scrollable) -->
         <div class="sidebar-sessions-section">
           <div class="section-label" style="display:flex; justify-content:space-between; align-items:center;">
-            <span>Recent Chats</span>
-            <span id="session-count-badge" style="font-size:10px; color:var(--accent); font-weight:600;"></span>
+            <span>Recent Chats <span id="session-count-badge" style="font-size:10px; color:var(--accent); font-weight:600;"></span></span>
+            <button type="button" class="archived-chats-btn" id="archived-chats-btn" onclick="openArchivedChatsDialog()" title="View archived chats">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                <rect x="1" y="3" width="22" height="5"></rect>
+                <line x1="10" y1="12" x2="14" y2="12"></line>
+              </svg>
+              <span>Archived</span>
+              <span id="archived-count-badge" class="archived-count-badge"></span>
+            </button>
           </div>
           <div id="session-list"></div>
         </div>
@@ -357,6 +365,6 @@
   <!-- Markdown Rendering & Sanitization (ChatGPT-like rich formatting) -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
-  <script src="app.js?v=5.5"></script>
+  <script src="app.js?v=5.7"></script>
 </body>
 </html>
