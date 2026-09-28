@@ -191,11 +191,57 @@ function closeSidebar() {
 }
 
 function openSidebarAndConfig() {
-  openSidebar();
-  var section = document.getElementById('sidebar-config-section');
-  if (section && section.classList.contains('collapsed')) {
-    toggleConfigSection();
+  openModelTokensDialog();
+}
+
+// -------------------------------------------------------
+// Model & Tokens Credential Pop-up Modal Dialog
+// -------------------------------------------------------
+function openModelTokensDialog() {
+  var overlay = document.getElementById('model-tokens-dialog-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    // Refresh latest model limits, provider state and live usage
+    var select = document.getElementById('provider-select');
+    var provider = (select ? select.value : 'claude').toLowerCase();
+    updateModelLimitsUI();
+    fetchLiveUsage(provider);
+    updateVault();
+    // Add escape key handler
+    document.addEventListener('keydown', handleModelTokensEscapeKey);
   }
+}
+
+function closeModelTokensDialog() {
+  var overlay = document.getElementById('model-tokens-dialog-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+  document.removeEventListener('keydown', handleModelTokensEscapeKey);
+}
+
+function handleModelTokensOverlayClick(event) {
+  var overlay = document.getElementById('model-tokens-dialog-overlay');
+  if (event.target === overlay) {
+    closeModelTokensDialog();
+  }
+}
+
+function handleModelTokensEscapeKey(event) {
+  if (event.key === 'Escape') {
+    closeModelTokensDialog();
+  }
+}
+
+function updateSidebarProviderBadge(provider) {
+  var badge = document.getElementById('sidebar-provider-badge');
+  if (!badge) return;
+  var displayMap = {
+    claude: 'Claude',
+    openai: 'OpenAI',
+    gemini: 'Gemini'
+  };
+  badge.textContent = displayMap[provider] || provider;
 }
 
 // -------------------------------------------------------
@@ -281,6 +327,7 @@ function onProviderChange(shouldSave) {
   var savedKey = localStorage.getItem('tb_key_' + provider) || '';
   document.getElementById('api-key-input').value = savedKey;
 
+  updateSidebarProviderBadge(provider);
   updateModelLimitsUI();
 }
 
@@ -436,21 +483,17 @@ function setEfficiency(level, shouldPersist) {
 }
 
 // -------------------------------------------------------
-// Collapsible Config Section
+// Model & Tokens Compatibility Shims
 // -------------------------------------------------------
 function toggleConfigSection() {
-  var sec = document.getElementById('sidebar-config-section');
-  if (!sec) return;
-  sec.classList.toggle('collapsed');
-  var isCollapsed = sec.classList.contains('collapsed');
-  localStorage.setItem('tb_config_collapsed', isCollapsed ? 'true' : 'false');
+  openModelTokensDialog();
 }
 
 function loadConfigSectionState() {
-  var isCollapsed = localStorage.getItem('tb_config_collapsed') === 'true';
-  var sec = document.getElementById('sidebar-config-section');
-  if (sec && isCollapsed) {
-    sec.classList.add('collapsed');
+  // Config section is now inside a modal dialog.
+  var select = document.getElementById('provider-select');
+  if (select) {
+    updateSidebarProviderBadge(select.value);
   }
 }
 
@@ -1760,8 +1803,18 @@ function closePromptPanel(event) {
 function updatePromptButtons(active) {
   var headerBtn = document.getElementById('btn-prompt-toggle');
   var inputBtn  = document.getElementById('btn-prompt-input');
-  if (headerBtn) { headerBtn.style.color = active ? 'var(--accent)' : ''; }
-  if (inputBtn)  { inputBtn.style.color  = active ? 'var(--accent)' : ''; }
+  var railBtn   = document.querySelector('.rail-prompt-btn');
+  if (headerBtn) {
+    headerBtn.classList.toggle('active', !!active);
+    headerBtn.style.color = active ? 'var(--accent)' : '';
+  }
+  if (inputBtn) {
+    inputBtn.classList.toggle('active', !!active);
+    inputBtn.style.color = active ? 'var(--accent)' : '';
+  }
+  if (railBtn) {
+    railBtn.classList.toggle('active', !!active);
+  }
 }
 
 function optimizePrompt() {
