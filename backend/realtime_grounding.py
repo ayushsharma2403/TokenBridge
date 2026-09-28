@@ -1,4 +1,4 @@
-import urllib.request
+nimport urllib.request
 import urllib.parse
 import json
 import re

@@ -28,7 +28,7 @@ def verify_firebase_token(id_token: str) -> dict:
         return {"valid": False, "error": str(e)}
 
 
-def login_with_phone(id_token: str) -> dict:
+def login_with_phone(id_token: str, user_name: str = None) -> dict:
     verified = verify_firebase_token(id_token)
     if not verified["valid"]:
         return {"error": verified["error"]}
@@ -48,12 +48,19 @@ def login_with_phone(id_token: str) -> dict:
     )
     existing = c.fetchone()
 
+    clean_name = (user_name or "").strip()
+
     if existing:
         user_id = existing[0]
         name    = existing[1]
         email   = existing[2] or ""
+        # If user passed a custom name and existing name was just the phone or needs update
+        if clean_name and (name == phone or name != clean_name):
+            name = clean_name
+            c.execute("UPDATE users SET name = %s WHERE id = %s", (name, user_id))
+            conn.commit()
     else:
-        name  = phone
+        name  = clean_name if clean_name else phone
         email = ""
         c.execute(
             "INSERT INTO users (name, email, google_id) VALUES (%s, %s, %s)",
@@ -73,3 +80,4 @@ def login_with_phone(id_token: str) -> dict:
         "email":   email,
         "phone":   phone
     }
+
