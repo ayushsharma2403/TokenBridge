@@ -105,21 +105,51 @@
     </div>
 
     <div id="step-otp" class="step">
-      <button class="back-link" onclick="showStep('phone')">← Back</button>
-      <div class="modal-title">Enter OTP</div>
+      <button class="back-link" onclick="handleOtpBack()">← Back</button>
+      <div class="modal-title" id="otp-modal-title">Enter OTP</div>
       <div class="modal-sub" id="otp-sent-to">OTP sent to your phone</div>
-      <div class="otp-inputs">
-        <input class="otp-input" type="text" maxlength="1" id="otp-1" oninput="otpNext(this,'otp-2')">
-        <input class="otp-input" type="text" maxlength="1" id="otp-2" oninput="otpNext(this,'otp-3')">
-        <input class="otp-input" type="text" maxlength="1" id="otp-3" oninput="otpNext(this,'otp-4')">
-        <input class="otp-input" type="text" maxlength="1" id="otp-4" oninput="otpNext(this,'otp-5')">
-        <input class="otp-input" type="text" maxlength="1" id="otp-5" oninput="otpNext(this,'otp-6')">
-        <input class="otp-input" type="text" maxlength="1" id="otp-6" oninput="otpNext(this,null)">
+      
+      <div class="otp-stage" id="otp-stage">
+        <!-- Radar concentric rings -->
+        <div class="otp-radar-rings" id="otp-radar-rings">
+          <div class="otp-radar-inner"></div>
+          <div class="otp-radar-outer"></div>
+        </div>
+
+        <!-- Orbit Container -->
+        <div class="otp-orbit-container" id="otp-orbit-container">
+          <div class="otp-inputs" id="otp-inputs-row">
+            <input class="otp-input" type="text" maxlength="1" id="otp-1" oninput="otpNext(this,'otp-2')" autocomplete="off">
+            <input class="otp-input" type="text" maxlength="1" id="otp-2" oninput="otpNext(this,'otp-3')" autocomplete="off">
+            <input class="otp-input" type="text" maxlength="1" id="otp-3" oninput="otpNext(this,'otp-4')" autocomplete="off">
+            <input class="otp-input" type="text" maxlength="1" id="otp-4" oninput="otpNext(this,'otp-5')" autocomplete="off">
+            <input class="otp-input" type="text" maxlength="1" id="otp-5" oninput="otpNext(this,'otp-6')" autocomplete="off">
+            <input class="otp-input" type="text" maxlength="1" id="otp-6" oninput="otpNext(this,null)" autocomplete="off">
+          </div>
+        </div>
+
+        <!-- Success Badge (Center) -->
+        <div class="otp-success-badge" id="otp-success-badge">
+          <svg viewBox="0 0 24 24">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+
+        <!-- Confetti Canvas -->
+        <canvas class="otp-confetti-canvas" id="otp-confetti-canvas"></canvas>
       </div>
-      <button class="continue-btn" onclick="verifyOTP()">Verify OTP</button>
-      <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:12px;">
-        Did not receive? <a href="#" style="color:var(--accent)" onclick="showStep('phone')">Resend</a>
+
+      <button class="continue-btn" id="verify-otp-btn" onclick="verifyOTP()">Verify OTP</button>
+      <p id="otp-footer-wrap" style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:12px;">
+        Did not receive? <a href="#" style="color:var(--accent)" id="otp-resend-link" onclick="handleOtpResend(event)">Resend</a>
       </p>
+    </div>
+
+    <div id="step-name" class="step">
+      <div class="modal-title">What's your name?</div>
+      <div class="modal-sub">Tell us your name so we know how to address you.</div>
+      <input class="email-input" type="text" id="phone-user-name" placeholder="Full name" style="margin-bottom:12px" onkeydown="if(event.key==='Enter')submitPhoneUserName()">
+      <button class="continue-btn" id="phone-name-btn" onclick="submitPhoneUserName()">Continue</button>
     </div>
 
     <div id="step-forgot" class="step">

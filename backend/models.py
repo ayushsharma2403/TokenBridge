@@ -29,6 +29,16 @@ class ResetPasswordRequest(BaseModel):
 
 class PhoneAuthRequest(BaseModel):
     firebase_token: str
+    name:           Optional[str] = None
+
+
+class EmailOtpSendRequest(BaseModel):
+    email: str
+
+
+class EmailOtpVerifyRequest(BaseModel):
+    email: str
+    otp:   str
 
 
 class AuthResponse(BaseModel):

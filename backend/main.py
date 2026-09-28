@@ -15,6 +15,7 @@ from models          import (
     PromptEngineerRequest, PromptEngineerResponse,
     SessionInfo, SessionUpdateRequest, UsageSummary, ModelLimits,
     RegisterRequest, LoginRequest, PhoneAuthRequest,
+    EmailOtpSendRequest, EmailOtpVerifyRequest,
     ForgotPasswordRequest, ResetPasswordRequest, AuthResponse
 )
 from checkpoint      import Checkpoint
@@ -29,7 +30,7 @@ from auth            import (
     generate_reset_token, reset_password
 )
 from oauth           import get_google_login_url, handle_google_callback
-from email_service   import send_reset_email
+from email_service   import send_reset_email, send_otp_email
 from firebase_auth   import login_with_phone
 from pydantic        import BaseModel
 
@@ -97,12 +98,23 @@ async def health():
 
 @app.post("/auth/register", response_model=AuthResponse)
 async def register(req: RegisterRequest):
-    result = register_user(req.name, req.email, req.password)
+    email = req.email.strip().lower()
+    # Check if registered with email OTP
+    rec = PENDING_EMAIL_OTPS.get(email)
+    if rec and not rec.get("verified"):
+        raise HTTPException(status_code=400, detail="Please verify your email with OTP first.")
+
+    result = register_user(req.name, email, req.password)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
+    
+    # Registration completed successfully -> clear OTP record
+    PENDING_EMAIL_OTPS.pop(email, None)
+
     from auth import create_token
     token = create_token(result["user_id"])
     return AuthResponse(token=token, **result)
+
 
 
 @app.post("/auth/login", response_model=AuthResponse)
@@ -115,7 +127,7 @@ async def login(req: LoginRequest):
 
 @app.post("/auth/phone", response_model=AuthResponse)
 async def auth_phone(req: PhoneAuthRequest):
-    result = login_with_phone(req.firebase_token)
+    result = login_with_phone(req.firebase_token, req.name)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return AuthResponse(**result)
@@ -184,6 +196,66 @@ async def check_email_exists(req: EmailCheck):
     c.close()
     conn.close()
     return {"exists": exists}
+
+
+# In-memory store for pending email OTPs: { email: { "otp": "123456", "expires_at": float_ts } }
+PENDING_EMAIL_OTPS = {}
+
+@app.post("/auth/email/send-otp")
+async def send_email_otp(req: EmailOtpSendRequest):
+    import time, random
+    email = req.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email address.")
+
+    from database import connect
+    conn = connect()
+    c = conn.cursor()
+    c.execute("SELECT id FROM users WHERE email = %s", (email,))
+    exists = c.fetchone() is not None
+    c.close()
+    conn.close()
+
+    if exists:
+        return {"exists": True, "message": "Email is already registered. Please enter password."}
+
+    # Generate 6-digit OTP
+    otp_code = "".join([str(random.randint(0, 9)) for _ in range(6)])
+    expires_at = time.time() + 600  # 10 minutes
+
+    PENDING_EMAIL_OTPS[email] = {
+        "otp": otp_code,
+        "expires_at": expires_at
+    }
+
+    sent = send_otp_email(email, otp_code)
+    if not sent:
+        raise HTTPException(status_code=500, detail="Failed to send verification email. Please verify SMTP settings.")
+
+    return {"exists": False, "sent": True, "message": f"Verification code sent to {email}"}
+
+
+@app.post("/auth/email/verify-otp")
+async def verify_email_otp(req: EmailOtpVerifyRequest):
+    import time
+    email = req.email.strip().lower()
+    otp   = req.otp.strip()
+
+    record = PENDING_EMAIL_OTPS.get(email)
+    if not record:
+        raise HTTPException(status_code=400, detail="No verification code was requested for this email.")
+
+    if time.time() > record["expires_at"]:
+        PENDING_EMAIL_OTPS.pop(email, None)
+        raise HTTPException(status_code=400, detail="Verification code has expired. Please request a new one.")
+
+    if record["otp"] != otp:
+        raise HTTPException(status_code=400, detail="Invalid verification code. Please try again.")
+
+    # Mark as verified (keep record with verified flag for registration)
+    record["verified"] = True
+    return {"verified": True, "message": "Email verified successfully."}
+
 
 
 # -------------------------------------------------------
