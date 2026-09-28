@@ -38,22 +38,8 @@ window.onload = function() {
   setupPromptEngineerListeners();
 
   document.getElementById('session-id-display').textContent = sessionId;
-
-  // Real-time subtle ambient light pointer tracking (throttled via requestAnimationFrame)
-  var lightTicking = false;
-  window.addEventListener('mousemove', function(e) {
-    if (!lightTicking) {
-      window.requestAnimationFrame(function() {
-        var xPct = (e.clientX / window.innerWidth * 100).toFixed(1) + '%';
-        var yPct = (e.clientY / window.innerHeight * 100).toFixed(1) + '%';
-        document.documentElement.style.setProperty('--mouse-x', xPct);
-        document.documentElement.style.setProperty('--mouse-y', yPct);
-        lightTicking = false;
-      });
-      lightTicking = true;
-    }
-  }, { passive: true });
 };
+
 
 function checkAuth() {
   var token = localStorage.getItem('tb_token');

@@ -189,40 +189,54 @@ body {
   letter-spacing: -0.015em;
 }
 
-/* Subsurface Optical Refraction Grid Beam & Ambient Light Drift */
+/* Subsurface Optical Refraction Grid Beam & Ambient Light Drift (All-over Slow Ambient Motion) */
 .optical-refraction-sheen {
   position: fixed;
-  inset: 0;
+  inset: -20%;
+  width: 140%;
+  height: 140%;
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(900px circle at var(--mouse-x, 50%) var(--mouse-y, 30%), rgba(198, 248, 48, 0.04), transparent 60%),
+    radial-gradient(1000px circle at 50% 40%, rgba(198, 248, 48, 0.035), transparent 65%),
+    radial-gradient(900px circle at 80% 80%, rgba(56, 189, 248, 0.04), transparent 60%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.015) 0%, transparent 35%, rgba(255, 255, 255, 0.012) 70%, transparent 100%),
     radial-gradient(1px 1px at 20px 20px, rgba(255, 255, 255, 0.035), transparent 100%);
-  background-size: 100% 100%, 100% 100%, 36px 36px;
+  background-size: 100% 100%, 100% 100%, 100% 100%, 36px 36px;
   opacity: 0.85;
-  animation: ambientLightBreathing 12s ease-in-out infinite alternate;
+  animation: ambientSlowDrift 28s ease-in-out infinite alternate;
 }
 
-@keyframes ambientLightBreathing {
+@keyframes ambientSlowDrift {
   0% {
-    opacity: 0.7;
+    transform: translate(0, 0) scale(1);
+    opacity: 0.75;
     filter: hue-rotate(0deg);
   }
-  50% {
-    opacity: 0.95;
-    filter: hue-rotate(15deg);
+  33% {
+    transform: translate(-3%, 2%) scale(1.03);
+    opacity: 0.9;
+    filter: hue-rotate(8deg);
+  }
+  66% {
+    transform: translate(2%, -3%) scale(0.98);
+    opacity: 0.8;
+    filter: hue-rotate(-6deg);
   }
   100% {
-    opacity: 0.75;
-    filter: hue-rotate(-10deg);
+    transform: translate(3%, 3%) scale(1.02);
+    opacity: 0.88;
+    filter: hue-rotate(4deg);
   }
 }
 
 [data-theme="light"] .optical-refraction-sheen {
-  background: radial-gradient(1px 1px at 20px 20px, rgba(0, 0, 0, 0.03), transparent 100%);
-  background-size: 36px 36px;
-  opacity: 0.6;
+  background:
+    radial-gradient(1000px circle at 50% 40%, rgba(163, 230, 53, 0.06), transparent 65%),
+    radial-gradient(900px circle at 80% 80%, rgba(56, 189, 248, 0.06), transparent 60%),
+    radial-gradient(1px 1px at 20px 20px, rgba(0, 0, 0, 0.03), transparent 100%);
+  background-size: 100% 100%, 100% 100%, 36px 36px;
+  opacity: 0.65;
 }
 
 /* --- Scrollbar Styling --- */
@@ -258,70 +272,93 @@ body {
 .orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(100px);
-  opacity: 0.28;
-  animation: orbFloat 14s ease-in-out infinite;
+  filter: blur(110px);
+  opacity: 0.32;
+  will-change: transform;
 }
 
 .orb-1 {
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(35, 45, 62, 0.55), transparent 70%);
-  top: -180px;
-  left: -180px;
-  animation-delay: 0s;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(35, 45, 62, 0.6), transparent 70%);
+  top: -120px;
+  left: -120px;
+  animation: orbDrift1 32s ease-in-out infinite alternate;
 }
 
 .orb-2 {
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(198, 248, 48, 0.08), transparent 70%);
-  bottom: -120px;
-  right: -120px;
-  animation-delay: -5s;
+  width: 620px;
+  height: 620px;
+  background: radial-gradient(circle, rgba(198, 248, 48, 0.09), transparent 70%);
+  bottom: -100px;
+  right: -100px;
+  animation: orbDrift2 36s ease-in-out infinite alternate;
 }
 
 .orb-3 {
-  width: 420px;
-  height: 420px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.12), transparent 70%);
-  top: 45%;
-  left: 45%;
-  transform: translate(-50%, -50%);
-  animation-delay: -9s;
-  opacity: 0.2;
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.13), transparent 70%);
+  top: 40%;
+  left: 35%;
+  opacity: 0.24;
+  animation: orbDrift3 28s ease-in-out infinite alternate;
 }
 
-@keyframes orbFloat {
-
-  0%,
+@keyframes orbDrift1 {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(80px, 60px) scale(1.08);
+  }
   100% {
-    transform: translateY(0px) scale(1) rotate(0deg);
+    transform: translate(-40px, 90px) scale(0.96);
   }
+}
 
+@keyframes orbDrift2 {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-90px, -70px) scale(1.1);
+  }
+  100% {
+    transform: translate(50px, -60px) scale(0.95);
+  }
+}
+
+@keyframes orbDrift3 {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+  }
   33% {
-    transform: translateY(-30px) scale(1.05) rotate(4deg);
+    transform: translate(-40%, -60%) scale(1.06);
   }
-
   66% {
-    transform: translateY(20px) scale(0.95) rotate(-4deg);
+    transform: translate(-60%, -40%) scale(0.94);
+  }
+  100% {
+    transform: translate(-45%, -45%) scale(1.02);
   }
 }
 
 [data-theme="light"] .orb-1 {
-  background: radial-gradient(circle, rgba(215, 225, 240, 0.6), transparent 70%);
-  opacity: 0.4;
+  background: radial-gradient(circle, rgba(215, 225, 240, 0.65), transparent 70%);
+  opacity: 0.45;
 }
 
 [data-theme="light"] .orb-2 {
-  background: radial-gradient(circle, rgba(163, 230, 53, 0.15), transparent 70%);
-  opacity: 0.3;
+  background: radial-gradient(circle, rgba(163, 230, 53, 0.18), transparent 70%);
+  opacity: 0.35;
 }
 
 [data-theme="light"] .orb-3 {
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.15), transparent 70%);
-  opacity: 0.25;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.18), transparent 70%);
+  opacity: 0.3;
 }
+
 
 /* =============================================
    GLASS UTILITY & CARDS WITH LIVING BOUNDARY SHINE
