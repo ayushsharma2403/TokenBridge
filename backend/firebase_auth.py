@@ -43,7 +43,7 @@ def login_with_phone(id_token: str, user_name: str = None, dob: str = None) -> d
     c    = conn.cursor()
 
     c.execute(
-        "SELECT id, name, email, dob FROM users WHERE google_id = %s",
+        "SELECT id, name, email, dob, age FROM users WHERE google_id = %s",
         (uid,)
     )
     existing = c.fetchone()
@@ -60,11 +60,23 @@ def login_with_phone(id_token: str, user_name: str = None, dob: str = None) -> d
         except Exception:
             pass
 
+    if age is not None and age < 18:
+        c.close()
+        conn.close()
+        return {"error": "Access restricted: You must be at least 18 years old to log in."}
+
     if existing:
         user_id = existing[0]
         name    = existing[1]
         email   = existing[2] or ""
         curr_dob = str(existing[3]) if existing[3] else None
+        existing_age = existing[4] if len(existing) > 4 else None
+
+        if existing_age is not None and existing_age < 18 and (age is None or age < 18):
+            c.close()
+            conn.close()
+            return {"error": "Access restricted: You must be at least 18 years old to log in."}
+
         # If user passed a custom name and existing name was just the phone or needs update
         if clean_name and (name == phone or name != clean_name):
             name = clean_name

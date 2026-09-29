@@ -106,6 +106,11 @@ def register_user(name: str, email: str, password: str, dob: Optional[str] = Non
         except Exception:
             pass
 
+    if age is not None and age < 18:
+        c.close()
+        conn.close()
+        return {"error": "Access restricted: You must be at least 18 years old."}
+
     c.execute(
         "INSERT INTO users (name, email, password_hash, dob, age) VALUES (%s, %s, %s, %s, %s)",
         (name, email, hash_password(password), clean_dob, age)
@@ -127,7 +132,7 @@ def login_user(email: str, password: str, remember_me: bool = False) -> dict:
     c    = conn.cursor()
 
     c.execute(
-        "SELECT id, name, email, password_hash FROM users WHERE email = %s AND is_active = TRUE",
+        "SELECT id, name, email, password_hash, age FROM users WHERE email = %s AND is_active = TRUE",
         (email,)
     )
     user = c.fetchone()
@@ -139,6 +144,10 @@ def login_user(email: str, password: str, remember_me: bool = False) -> dict:
 
     if not verify_password(password, user[3]):
         return {"error": "Incorrect password."}
+
+    user_age = user[4]
+    if user_age is not None and user_age < 18:
+        return {"error": "Access restricted: You must be at least 18 years old to log in."}
 
     token = create_token(user[0], remember_me)
     return {
