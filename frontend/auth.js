@@ -264,12 +264,38 @@ function submitPassword() {
   .catch(function() { showMsg("Cannot connect to server.", "error"); });
 }
 
+function calculateAge(dobStr) {
+  if (!dobStr) return null;
+  try {
+    var parts = dobStr.split("-");
+    if (parts.length !== 3) return null;
+    var year = parseInt(parts[0], 10);
+    var month = parseInt(parts[1], 10) - 1;
+    var day = parseInt(parts[2], 10);
+    var born = new Date(year, month, day);
+    var today = new Date();
+    var age = today.getFullYear() - born.getFullYear();
+    var m = today.getMonth() - born.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < born.getDate())) {
+      age--;
+    }
+    return age;
+  } catch (e) {
+    return null;
+  }
+}
+
 function submitSignup() {
   var name = document.getElementById("name-input").value.trim();
   var dob  = document.getElementById("signup-dob") ? document.getElementById("signup-dob").value : "";
   var pwd  = document.getElementById("signup-pwd").value;
   if (!name) { showMsg("Please enter your name.", "error"); return; }
   if (!dob) { showMsg("Please enter your date of birth (DOB).", "error"); return; }
+  var age = calculateAge(dob);
+  if (age !== null && age < 18) {
+    showMsg("Access restricted: You must be at least 18 years old to create an account.", "error");
+    return;
+  }
   if (pwd.length < 8) { showMsg("Password must be at least 8 characters.", "error"); return; }
   fetch(API + "/auth/register", {
     method: "POST",
@@ -842,6 +868,12 @@ function submitPhoneUserName() {
     return;
   }
 
+  var age = calculateAge(dob);
+  if (age !== null && age < 18) {
+    showMsg("Access restricted: You must be at least 18 years old to log in.", "error");
+    return;
+  }
+
   var btn = document.getElementById("phone-name-btn");
   if (btn) {
     btn.disabled = true;
@@ -858,27 +890,29 @@ function submitPhoneUserName() {
         dob: dob
       })
     })
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = "Continue";
-      }
-      saveAndRedirect(data);
+    .then(function(res) {
+      return res.json().then(function(data) {
+        if (!res.ok) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Continue";
+          }
+          showMsg(data.detail || "Authentication failed.", "error");
+          return;
+        }
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Continue";
+        }
+        saveAndRedirect(data);
+      });
     })
     .catch(function(err) {
       if (btn) {
         btn.disabled = false;
         btn.textContent = "Continue";
       }
-      // Fallback with pendingPhoneAuthData updated with the chosen name & dob
-      if (pendingPhoneAuthData) {
-        pendingPhoneAuthData.name = name;
-        pendingPhoneAuthData.dob = dob;
-        saveAndRedirect(pendingPhoneAuthData);
-      } else {
-        showMsg("Failed to save profile. Please try again.", "error");
-      }
+      showMsg("Cannot connect to server. Please try again.", "error");
     });
   } else if (pendingPhoneAuthData) {
     pendingPhoneAuthData.name = name;
@@ -1003,6 +1037,10 @@ function submitNewPassword() {
   initCountrySelector();
   if (localStorage.getItem("tb_token")) window.location.href = "index.html";
   var urlParams = new URLSearchParams(window.location.search);
+  var urlError = urlParams.get("error");
+  if (urlError) {
+    showMsg(decodeURIComponent(urlError), "error");
+  }
   if (urlParams.get("step") === "otp") {
     showStep("otp");
   }

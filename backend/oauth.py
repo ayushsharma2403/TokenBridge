@@ -107,6 +107,11 @@ async def handle_google_callback(code: str) -> dict:
         return {"error": "Could not get email from Google."}
 
     # Step 3: Find or create user in MySQL
+    # Step 3: Enforce Age >= 18 restriction
+    # If google_age is known and less than 18, deny login
+    if google_age is not None and google_age < 18:
+        return {"error": "Access restricted: You must be at least 18 years old to log in."}
+
     conn = connect()
     c    = conn.cursor()
 
@@ -120,6 +125,12 @@ async def handle_google_callback(code: str) -> dict:
     if existing:
         user_id   = existing[0]
         user_name = existing[1]
+        existing_age = existing[3]
+        if existing_age is not None and existing_age < 18:
+            c.close()
+            conn.close()
+            return {"error": "Access restricted: You must be at least 18 years old to log in."}
+
         # Update google_id and auto-fetched DOB/age if not yet present in existing profile
         if google_dob and not existing[2]:
             c.execute(

@@ -273,6 +273,9 @@ async def update_profile_endpoint(req: ProfileUpdateRequest, authorization: Opti
         except Exception:
             pass
 
+    if age is not None and age < 18:
+        raise HTTPException(status_code=400, detail="Access restricted: You must be at least 18 years old.")
+
     updated = update_user_profile(
         user_id=user["user_id"],
         name=req.name,
