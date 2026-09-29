@@ -171,3 +171,160 @@ async def call_api(messages: list, api_key: str, provider: str, efficiency: str 
             f"Unknown provider: {provider}. Valid: claude, openai, gemini"
         )
 
+
+async def validate_api_key(api_key: str, provider: str) -> dict:
+    """
+    Validates an API key against the provider's official model API.
+    Returns:
+        { "valid": bool, "provider": str, "model_name": str, "max_tokens": int, "error": str, "message": str }
+    """
+    p = (provider or "").strip().lower()
+    if p not in ["claude", "openai", "gemini"]:
+        return {
+            "valid": False,
+            "provider": provider,
+            "error": f"Unsupported provider '{provider}'. Must be claude, openai, or gemini."
+        }
+
+    key = (api_key or "").strip()
+    if not key:
+        return {
+            "valid": False,
+            "provider": p,
+            "error": "API key cannot be empty."
+        }
+
+    # Basic format check
+    if p == "claude" and not key.startswith("sk-ant-"):
+        return {
+            "valid": False,
+            "provider": p,
+            "error": "Invalid format for Claude API key. Anthropic keys usually start with 'sk-ant-'."
+        }
+    elif p == "openai" and not (key.startswith("sk-") or key.startswith("sess-")):
+        return {
+            "valid": False,
+            "provider": p,
+            "error": "Invalid format for OpenAI API key. OpenAI keys usually start with 'sk-'."
+        }
+    elif p == "gemini" and not (key.startswith("AIza") or key.startswith("AQ.")):
+        return {
+            "valid": False,
+            "provider": p,
+            "error": "Invalid format for Gemini API key. Google AI keys usually start with 'AIza'."
+        }
+
+    # Live validation against provider API
+    if p == "openai":
+        try:
+            client = AsyncOpenAI(api_key=key)
+            # Lightweight verification: list models
+            await client.models.list()
+            return {
+                "valid": True,
+                "provider": "openai",
+                "model_name": OPENAI_MODEL,
+                "max_tokens": 128000,
+                "description": f"OpenAI GPT ({OPENAI_MODEL}) - Active & Valid",
+                "message": "OpenAI API key verified successfully."
+            }
+        except Exception as e:
+            err_text = str(e)
+            if "Incorrect API key provided" in err_text or "invalid_api_key" in err_text or "401" in err_text:
+                clean_err = "Incorrect or invalid OpenAI API key."
+            elif "insufficient_quota" in err_text or "quota" in err_text.lower():
+                clean_err = "OpenAI API key has exceeded its quota or has no available balance."
+            else:
+                clean_err = f"OpenAI error: {err_text[:120]}"
+            return {
+                "valid": False,
+                "provider": "openai",
+                "error": clean_err
+            }
+
+    elif p == "claude":
+        try:
+            client = anthropic.AsyncAnthropic(api_key=key)
+            # Lightweight verification: 1-token message create test
+            await client.messages.create(
+                model=CLAUDE_MODEL,
+                max_tokens=1,
+                messages=[{"role": "user", "content": "ping"}]
+            )
+            return {
+                "valid": True,
+                "provider": "claude",
+                "model_name": CLAUDE_MODEL,
+                "max_tokens": 200000,
+                "description": f"Anthropic Claude ({CLAUDE_MODEL}) - Active & Valid",
+                "message": "Claude API key verified successfully."
+            }
+        except anthropic.AuthenticationError:
+            return {
+                "valid": False,
+                "provider": "claude",
+                "error": "Invalid Claude API key. Authentication failed."
+            }
+        except anthropic.RateLimitError as rle:
+            return {
+                "valid": False,
+                "provider": "claude",
+                "error": f"Claude API rate limit or quota exceeded: {str(rle)[:100]}"
+            }
+        except Exception as e:
+            err_text = str(e)
+            if "401" in err_text or "authentication" in err_text.lower():
+                clean_err = "Invalid Claude API key. Authentication failed."
+            elif "credit" in err_text.lower() or "balance" in err_text.lower():
+                clean_err = "Claude account balance or credit insufficient."
+            else:
+                clean_err = f"Claude error: {err_text[:120]}"
+            return {
+                "valid": False,
+                "provider": "claude",
+                "error": clean_err
+            }
+
+    elif p == "gemini":
+        try:
+            genai.configure(api_key=key)
+            # Use list_models or get_model for instantaneous check
+            import asyncio
+            loop = asyncio.get_event_loop()
+
+            def _check_gemini():
+                # Test listing models with this key
+                models = list(genai.list_models())
+                return len(models) > 0
+
+            has_models = await loop.run_in_executor(None, _check_gemini)
+            if has_models:
+                return {
+                    "valid": True,
+                    "provider": "gemini",
+                    "model_name": GEMINI_MODEL,
+                    "max_tokens": 1000000,
+                    "description": f"Google Gemini ({GEMINI_MODEL}) - Active & Valid",
+                    "message": "Gemini API key verified successfully."
+                }
+            else:
+                return {
+                    "valid": False,
+                    "provider": "gemini",
+                    "error": "Gemini API key has no accessible models or invalid permissions."
+                }
+        except Exception as e:
+            err_text = str(e)
+            if "API_KEY_INVALID" in err_text or "API key not valid" in err_text or "400" in err_text:
+                clean_err = "Invalid Gemini API key. Please check your Google AI Studio key."
+            elif "QUOTA_EXCEEDED" in err_text or "RESOURCE_EXHAUSTED" in err_text:
+                clean_err = "Gemini API quota exhausted for this API key."
+            else:
+                clean_err = f"Gemini error: {err_text[:120]}"
+            return {
+                "valid": False,
+                "provider": "gemini",
+                "error": clean_err
+            }
+
+

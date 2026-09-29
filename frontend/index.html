@@ -384,11 +384,15 @@
           <option value="gemini">Google Gemini</option>
         </select>
 
-        <div class="section-label">API Key</div>
+        <div class="section-label" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>API Key</span>
+          <button type="button" class="key-verify-trigger-btn" id="key-verify-btn" onclick="triggerKeyValidation(true)">Verify Key</button>
+        </div>
         <div class="api-key-wrap">
-          <input type="password" id="api-key-input" placeholder="Paste your API key...">
+          <input type="password" id="api-key-input" placeholder="Paste your API key..." oninput="onApiKeyInput()" onpaste="onApiKeyPaste()">
           <button class="eye-btn" onclick="toggleApiKey()" type="button" title="Toggle visibility">&#128065;</button>
         </div>
+        <div id="api-key-status" class="api-key-status-msg" style="display:none;"></div>
 
         <div class="section-label" style="display:flex; justify-content:space-between; align-items:center;">
           <span>Token Budget</span>
@@ -397,6 +401,7 @@
         <div class="api-key-wrap">
           <input type="number" id="token-budget" value="200000" min="1000" max="2000000" style="padding-right:12px" oninput="onTokenBudgetChange()">
         </div>
+
 
         <div class="section-label">Token Usage</div>
         <div class="token-meter-wrap">

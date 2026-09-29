@@ -14,20 +14,21 @@ from models          import (
     ChatRequest, ChatResponse,
     PromptEngineerRequest, PromptEngineerResponse,
     SessionInfo, SessionUpdateRequest, UsageSummary, ModelLimits,
+    KeyValidationRequest, KeyValidationResponse,
     RegisterRequest, LoginRequest, PhoneAuthRequest,
     EmailOtpSendRequest, EmailOtpVerifyRequest,
-    ForgotPasswordRequest, ResetPasswordRequest, AuthResponse
+    ForgotPasswordRequest, ResetPasswordRequest, ResetPasswordWithOtpRequest, AuthResponse
 )
 from checkpoint      import Checkpoint
 from budget          import Budget
 from optimizer       import optimize
 from prompt_engineer import engineer_prompt
-from router          import call_api, detect_provider
+from router          import call_api, detect_provider, validate_api_key
 from tokenvault      import log, session_stats, global_stats, COSTS
 from auth            import (
     register_user, login_user,
     get_user_from_token,
-    generate_reset_token, reset_password
+    generate_reset_token, reset_password, update_password_by_email
 )
 from oauth           import get_google_login_url, handle_google_callback
 from email_service   import send_reset_email, send_otp_email
@@ -170,12 +171,79 @@ async def forgot_password(req: ForgotPasswordRequest):
     return {"message": "If that email exists, a reset link has been sent."}
 
 
+@app.post("/auth/forgot-password-otp")
+async def forgot_password_otp(req: ForgotPasswordRequest):
+    """Generates and sends a 6-digit OTP to the registered user email for password reset."""
+    import time, random
+    email = req.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email address.")
+
+    from database import connect
+    conn = connect()
+    c = conn.cursor()
+    c.execute("SELECT id, name FROM users WHERE email = %s AND is_active = TRUE", (email,))
+    user = c.fetchone()
+    c.close()
+    conn.close()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="No registered account found with this email.")
+
+    otp_code = "".join([str(random.randint(0, 9)) for _ in range(6)])
+    expires_at = time.time() + 600  # 10 minutes
+
+    PENDING_EMAIL_OTPS[email] = {
+        "otp": otp_code,
+        "expires_at": expires_at,
+        "mode": "reset_password"
+    }
+
+    sent = send_otp_email(email, otp_code)
+    if not sent:
+        raise HTTPException(status_code=500, detail="Failed to send reset code. Please check your email settings.")
+
+    return {"sent": True, "message": f"Password reset OTP sent to {email}."}
+
+
+@app.post("/auth/reset-password-otp")
+async def reset_password_with_otp(req: ResetPasswordWithOtpRequest):
+    """Verifies the OTP and updates the user's password."""
+    import time
+    email = req.email.strip().lower()
+    otp   = req.otp.strip()
+    new_pwd = req.new_password
+
+    if len(new_pwd) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+
+    record = PENDING_EMAIL_OTPS.get(email)
+    if not record:
+        raise HTTPException(status_code=400, detail="No reset code was requested for this email.")
+
+    if time.time() > record["expires_at"]:
+        PENDING_EMAIL_OTPS.pop(email, None)
+        raise HTTPException(status_code=400, detail="Reset code has expired. Please request a new one.")
+
+    if record["otp"] != otp:
+        raise HTTPException(status_code=400, detail="Invalid reset code. Please try again.")
+
+    # Apply password update
+    res = update_password_by_email(email, new_pwd)
+    if "error" in res:
+        raise HTTPException(status_code=400, detail=res["error"])
+
+    PENDING_EMAIL_OTPS.pop(email, None)
+    return {"message": "Password has been successfully reset. You can now log in."}
+
+
 @app.post("/auth/reset-password")
 async def reset_pwd(req: ResetPasswordRequest):
     result = reset_password(req.token, req.new_password)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return result
+
 
 
 @app.get("/auth/me")
@@ -497,6 +565,19 @@ PROVIDER_MODEL_LIMITS = {
 async def get_models_limits():
     """Returns official max token budget and model details for each provider."""
     return PROVIDER_MODEL_LIMITS
+
+
+@app.post("/keys/validate", response_model=KeyValidationResponse)
+async def validate_key_endpoint(req: KeyValidationRequest, authorization: Optional[str] = Header(None)):
+    """
+    Validates user API key with the selected provider/model.
+    Returns whether the key is valid, along with its model limits, or an invalid error description.
+    """
+    # Allow authenticated users to validate keys
+    get_current_user(authorization)
+    result = await validate_api_key(req.api_key, req.provider)
+    return KeyValidationResponse(**result)
+
 
 
 @app.get("/usage/{session_id}", response_model=UsageSummary)

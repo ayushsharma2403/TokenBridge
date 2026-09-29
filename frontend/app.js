@@ -207,6 +207,11 @@ function openModelTokensDialog() {
     updateModelLimitsUI();
     fetchLiveUsage(provider);
     updateVault();
+    // Validate current key state if a key is present
+    var key = (document.getElementById('api-key-input') ? document.getElementById('api-key-input').value : '').trim();
+    if (key && key.length > 8) {
+      triggerKeyValidation(false);
+    }
     // Add escape key handler
     document.addEventListener('keydown', handleModelTokensEscapeKey);
   }
@@ -327,8 +332,163 @@ function onProviderChange(shouldSave) {
   var savedKey = localStorage.getItem('tb_key_' + provider) || '';
   document.getElementById('api-key-input').value = savedKey;
 
+  // Clear any existing key validation status message
+  setApiKeyStatus('', '');
+
   updateSidebarProviderBadge(provider);
   updateModelLimitsUI();
+
+  // If there is already a saved key for this provider, validate it passively
+  if (savedKey && savedKey.length > 8) {
+    triggerKeyValidation(false);
+  }
+}
+
+var keyValidationTimer = null;
+
+function onApiKeyInput() {
+  if (keyValidationTimer) { clearTimeout(keyValidationTimer); }
+  var key = (document.getElementById('api-key-input').value || '').trim();
+  if (!key) {
+    setApiKeyStatus('', '');
+    return;
+  }
+  setApiKeyStatus('Checking key...', 'pending');
+  keyValidationTimer = setTimeout(function() {
+    triggerKeyValidation(false);
+  }, 750);
+}
+
+function onApiKeyPaste() {
+  setTimeout(function() {
+    triggerKeyValidation(true);
+  }, 100);
+}
+
+function setApiKeyStatus(message, statusType) {
+  var statusEl = document.getElementById('api-key-status');
+  var verifyBtn = document.getElementById('key-verify-btn');
+  if (!statusEl) return;
+
+  if (!message) {
+    statusEl.style.display = 'none';
+    statusEl.innerHTML = '';
+    statusEl.className = 'api-key-status-msg';
+    if (verifyBtn) {
+      verifyBtn.textContent = 'Verify Key';
+      verifyBtn.disabled = false;
+    }
+    return;
+  }
+
+  statusEl.style.display = 'block';
+  statusEl.className = 'api-key-status-msg ' + (statusType || '');
+  statusEl.innerHTML = message;
+
+  if (verifyBtn) {
+    if (statusType === 'pending') {
+      verifyBtn.textContent = 'Verifying...';
+      verifyBtn.disabled = true;
+    } else {
+      verifyBtn.textContent = 'Verify Key';
+      verifyBtn.disabled = false;
+    }
+  }
+}
+
+function triggerKeyValidation(isExplicit) {
+  var select = document.getElementById('provider-select');
+  var provider = (select ? select.value : 'claude').toLowerCase();
+  var input = document.getElementById('api-key-input');
+  var key = (input ? input.value : '').trim();
+
+  if (!key) {
+    setApiKeyStatus('Please enter an API key to verify.', 'error');
+    return;
+  }
+
+  setApiKeyStatus('<span class="spinner-inline"></span> Validating ' + provider.toUpperCase() + ' key against model API...', 'pending');
+
+  authFetch('/keys/validate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: provider, api_key: key })
+  })
+  .then(function(res) {
+    return res.json().then(function(data) {
+      if (!res.ok) {
+        var errDetail = data.detail || data.error || 'Validation failed';
+        handleInvalidApiKey(provider, errDetail);
+      } else if (!data.valid) {
+        handleInvalidApiKey(provider, data.error || 'Invalid API key for ' + provider);
+      } else {
+        handleValidApiKey(provider, key, data);
+      }
+    });
+  })
+  .catch(function(err) {
+    setApiKeyStatus('⚠️ Network error while validating key. Backend might be offline.', 'error');
+  });
+}
+
+function handleValidApiKey(provider, key, data) {
+  localStorage.setItem('tb_key_' + provider, key);
+  var maxTokens = data.max_tokens || 200000;
+  var modelName = data.model_name || '';
+
+  // Update MODEL_DEFAULT_LIMITS with the verified max tokens
+  if (!MODEL_DEFAULT_LIMITS[provider]) {
+    MODEL_DEFAULT_LIMITS[provider] = {};
+  }
+  MODEL_DEFAULT_LIMITS[provider].max_tokens = maxTokens;
+  if (modelName) {
+    MODEL_DEFAULT_LIMITS[provider].model_name = modelName;
+  }
+
+  // Set the token budget to the validated max number of tokens the API key supports
+  var budgetInput = document.getElementById('token-budget');
+  if (budgetInput) {
+    budgetInput.value = maxTokens;
+    budgetInput.disabled = false;
+    budgetInput.style.opacity = '1';
+    localStorage.setItem('tb_budget_' + provider, maxTokens);
+  }
+
+  var badge = document.getElementById('model-max-badge');
+  if (badge) {
+    badge.textContent = 'Max: ' + maxTokens.toLocaleString();
+    badge.style.color = 'var(--accent, #10b981)';
+  }
+
+  setApiKeyStatus(
+    '✓ <strong>Valid API Key</strong> (' + (modelName || provider) + ' &bull; ' + maxTokens.toLocaleString() + ' max tokens)',
+    'success'
+  );
+
+  fetchLiveUsage(provider);
+}
+
+function handleInvalidApiKey(provider, errorMsg) {
+  var badge = document.getElementById('model-max-badge');
+  if (badge) {
+    badge.textContent = 'Invalid / Error';
+    badge.style.color = 'var(--status-rose, #f43f5e)';
+  }
+
+  var budgetInput = document.getElementById('token-budget');
+  if (budgetInput) {
+    budgetInput.value = 0;
+    budgetInput.disabled = true;
+    budgetInput.style.opacity = '0.6';
+  }
+
+  // Update token meter to reflect 0 budget for invalid key
+  updateTokenMeter(0, 0);
+
+  setApiKeyStatus(
+    '✗ <strong>Invalid API Key</strong>: ' + (errorMsg || 'Key is invalid or rejected by model provider.'),
+    'error'
+  );
 }
 
 function onTokenBudgetChange() {
