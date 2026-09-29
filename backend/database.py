@@ -33,6 +33,26 @@ def setup():
         pass
 
     try:
+        c.execute("ALTER TABLE users ADD COLUMN dob DATE NULL AFTER email")
+    except Exception:
+        pass
+
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN age INT NULL AFTER dob")
+    except Exception:
+        pass
+
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN subscription_tier VARCHAR(50) DEFAULT 'Free' AFTER age")
+    except Exception:
+        pass
+
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN language VARCHAR(20) DEFAULT 'en' AFTER subscription_tier")
+    except Exception:
+        pass
+
+    try:
         c.execute("ALTER TABLE usage_log ADD COLUMN user_id INT AFTER session_id")
     except Exception:
         pass

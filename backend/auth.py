@@ -150,7 +150,7 @@ def get_user_from_token(token: str) -> Optional[dict]:
     conn = connect()
     c    = conn.cursor()
     c.execute(
-        "SELECT id, name, email FROM users WHERE id = %s AND is_active = TRUE",
+        "SELECT id, name, email, dob, age, subscription_tier, language, created_at FROM users WHERE id = %s AND is_active = TRUE",
         (user_id,)
     )
     user = c.fetchone()
@@ -160,7 +160,16 @@ def get_user_from_token(token: str) -> Optional[dict]:
     if not user:
         return None
 
-    return {"user_id": user[0], "name": user[1], "email": user[2]}
+    return {
+        "user_id": user[0],
+        "name": user[1],
+        "email": user[2],
+        "dob": str(user[3]) if user[3] else None,
+        "age": user[4],
+        "subscription_tier": user[5] or "Free",
+        "language": user[6] or "en",
+        "created_at": str(user[7]) if user[7] else None
+    }
 
 
 # -------------------------------------------------------
@@ -237,4 +246,83 @@ def update_password_by_email(email: str, new_password: str) -> dict:
     conn.close()
 
     return {"message": "Password reset successful."}
+
+
+def change_user_password(user_id: int, old_password: str, new_password: str) -> dict:
+    conn = connect()
+    c    = conn.cursor()
+    c.execute("SELECT password_hash FROM users WHERE id = %s AND is_active = TRUE", (user_id,))
+    row = c.fetchone()
+    if not row:
+        c.close()
+        conn.close()
+        return {"error": "User not found."}
+
+    curr_hash = row[0]
+    # If user has an existing password, verify old password
+    if curr_hash and not verify_password(old_password, curr_hash):
+        c.close()
+        conn.close()
+        return {"error": "Current password is incorrect."}
+
+    c.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hash_password(new_password), user_id))
+    conn.commit()
+    c.close()
+    conn.close()
+    return {"message": "Password updated successfully."}
+
+
+def update_user_profile(user_id: int, name: Optional[str] = None, dob: Optional[str] = None,
+                        age: Optional[int] = None, subscription_tier: Optional[str] = None,
+                        language: Optional[str] = None) -> dict:
+    conn = connect()
+    c    = conn.cursor()
+
+    updates = []
+    params = []
+    if name is not None and name.strip():
+        updates.append("name = %s")
+        params.append(name.strip())
+    if dob is not None:
+        if dob == "" or dob.lower() == "null":
+            updates.append("dob = NULL")
+        else:
+            updates.append("dob = %s")
+            params.append(dob)
+    if age is not None:
+        updates.append("age = %s")
+        params.append(age)
+    if subscription_tier is not None:
+        updates.append("subscription_tier = %s")
+        params.append(subscription_tier)
+    if language is not None:
+        updates.append("language = %s")
+        params.append(language)
+
+    if not updates:
+        c.close()
+        conn.close()
+        return {"message": "No updates specified."}
+
+    params.append(user_id)
+    query = f"UPDATE users SET {', '.join(updates)} WHERE id = %s AND is_active = TRUE"
+    c.execute(query, tuple(params))
+    conn.commit()
+
+    c.execute("SELECT id, name, email, dob, age, subscription_tier, language, created_at FROM users WHERE id = %s", (user_id,))
+    u = c.fetchone()
+    c.close()
+    conn.close()
+
+    return {
+        "user_id": u[0],
+        "name": u[1],
+        "email": u[2],
+        "dob": str(u[3]) if u[3] else None,
+        "age": u[4],
+        "subscription_tier": u[5] or "Free",
+        "language": u[6] or "en",
+        "created_at": str(u[7]) if u[7] else None
+    }
+
 

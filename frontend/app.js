@@ -2381,4 +2381,442 @@ function stopVoiceInput() {
   }
 }
 
+// -------------------------------------------------------
+// User Account Profile & Settings Dialog Controller
+// -------------------------------------------------------
+var currentAccountData = null;
+
+function openAccountDialog() {
+  var overlay = document.getElementById('account-dialog-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    document.addEventListener('keydown', handleAccountEscapeKey);
+    fetchUserProfile();
+    fetchDailyUsage();
+    loadAccountPreferencesUI();
+  }
+}
+
+function closeAccountDialog() {
+  var overlay = document.getElementById('account-dialog-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+  document.removeEventListener('keydown', handleAccountEscapeKey);
+  clearAccountStatusMsg();
+}
+
+function handleAccountOverlayClick(event) {
+  var overlay = document.getElementById('account-dialog-overlay');
+  if (event.target === overlay) {
+    closeAccountDialog();
+  }
+}
+
+function handleAccountEscapeKey(event) {
+  if (event.key === 'Escape') {
+    closeAccountDialog();
+  }
+}
+
+function switchAccountTab(tabName) {
+  clearAccountStatusMsg();
+  var buttons = document.querySelectorAll('.account-tab-btn');
+  buttons.forEach(function(btn) {
+    if (btn.getAttribute('data-tab') === tabName) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  var contents = document.querySelectorAll('.account-tab-content');
+  contents.forEach(function(content) {
+    content.style.display = 'none';
+    content.classList.remove('active');
+  });
+
+  var target = document.getElementById('tab-' + tabName);
+  if (target) {
+    target.style.display = 'block';
+    target.classList.add('active');
+  }
+
+  if (tabName === 'usage') {
+    fetchDailyUsage();
+  }
+}
+
+function showAccountStatusMsg(text, type) {
+  var el = document.getElementById('account-status-msg');
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'account-status-msg ' + (type || 'info');
+  el.style.display = 'block';
+  setTimeout(function() {
+    if (el && type === 'success') {
+      el.style.display = 'none';
+    }
+  }, 4000);
+}
+
+function clearAccountStatusMsg() {
+  var el = document.getElementById('account-status-msg');
+  if (el) {
+    el.style.display = 'none';
+    el.textContent = '';
+  }
+}
+
+function fetchUserProfile() {
+  authFetch('/auth/me')
+  .then(function(res) { return res.json(); })
+  .then(function(user) {
+    if (!user || user.detail) return;
+    currentAccountData = user;
+
+    // Header updates
+    var modalName = document.getElementById('account-modal-name');
+    var modalEmail = document.getElementById('account-modal-email');
+    var modalAvatar = document.getElementById('account-header-avatar');
+    if (modalName) modalName.textContent = user.name || 'User Account';
+    if (modalEmail) modalEmail.textContent = user.email || 'No email registered';
+    if (modalAvatar) modalAvatar.textContent = (user.name || 'U').charAt(0).toUpperCase();
+
+    // Profile Tab Inputs
+    var nameInput = document.getElementById('acc-name');
+    var dobInput = document.getElementById('acc-dob');
+    var ageInput = document.getElementById('acc-age');
+    var emailInput = document.getElementById('acc-email');
+    if (nameInput) nameInput.value = user.name || '';
+    if (dobInput) dobInput.value = user.dob || '';
+    if (ageInput) ageInput.value = (user.age !== null && user.age !== undefined) ? user.age : '';
+    if (emailInput) emailInput.value = user.email || '';
+
+    // Preferences Tab
+    var langSelect = document.getElementById('acc-language');
+    if (langSelect && user.language) {
+      langSelect.value = user.language;
+    }
+
+    // Subscriptions Tier UI
+    updateSubscriptionTierUI(user.subscription_tier || 'Free');
+
+    // Update main user sidebar cards
+    localStorage.setItem('tb_name', user.name);
+    if (user.email) localStorage.setItem('tb_email', user.email);
+    var uName = document.getElementById('user-name');
+    var uEmail = document.getElementById('user-email');
+    var uAvatar = document.getElementById('user-avatar');
+    var railAvatar = document.getElementById('rail-user-avatar');
+    if (uName) uName.textContent = user.name;
+    if (uEmail) uEmail.textContent = user.email || '';
+    var init = (user.name || 'U').charAt(0).toUpperCase();
+    if (uAvatar) uAvatar.textContent = init;
+    if (railAvatar) railAvatar.textContent = init;
+  })
+  .catch(function(err) {
+    console.warn('Failed to load user profile:', err);
+  });
+}
+
+function autoCalculateAgeFromDob(dobVal) {
+  if (!dobVal) return;
+  try {
+    var parts = dobVal.split('-');
+    if (parts.length === 3) {
+      var birthYear = parseInt(parts[0], 10);
+      var birthMonth = parseInt(parts[1], 10) - 1;
+      var birthDay = parseInt(parts[2], 10);
+      var birthDate = new Date(birthYear, birthMonth, birthDay);
+      var today = new Date();
+      var calculatedAge = today.getFullYear() - birthDate.getFullYear();
+      var m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        calculatedAge--;
+      }
+      if (calculatedAge >= 0 && calculatedAge <= 130) {
+        var ageInput = document.getElementById('acc-age');
+        if (ageInput) ageInput.value = calculatedAge;
+      }
+    }
+  } catch (e) {}
+}
+
+function saveAccountProfile() {
+  var name = document.getElementById('acc-name').value.trim();
+  var dob = document.getElementById('acc-dob').value;
+  var ageVal = document.getElementById('acc-age').value.trim();
+  var age = ageVal ? parseInt(ageVal, 10) : null;
+
+  if (!name) {
+    showAccountStatusMsg('Please enter a valid name.', 'error');
+    return;
+  }
+
+  var btn = document.getElementById('save-profile-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+  }
+
+  authFetch('/auth/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name, dob: dob || null, age: age })
+  })
+  .then(function(res) {
+    return res.json().then(function(data) {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Save Profile';
+      }
+      if (!res.ok) {
+        showAccountStatusMsg(data.detail || 'Failed to update profile.', 'error');
+        return;
+      }
+      showAccountStatusMsg('Profile details updated successfully.', 'success');
+      fetchUserProfile();
+    });
+  })
+  .catch(function() {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Save Profile';
+    }
+    showAccountStatusMsg('Cannot connect to server. Please try again.', 'error');
+  });
+}
+
+function toggleAccPwdVisibility(inputId, btn) {
+  var input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.style.color = 'var(--accent)';
+  } else {
+    input.type = 'password';
+    btn.style.color = '';
+  }
+}
+
+function saveAccountPassword() {
+  var oldPwd = document.getElementById('acc-old-pwd').value;
+  var newPwd = document.getElementById('acc-new-pwd').value;
+  var confirmPwd = document.getElementById('acc-confirm-pwd').value;
+
+  if (!newPwd || newPwd.length < 8) {
+    showAccountStatusMsg('New password must be at least 8 characters.', 'error');
+    return;
+  }
+  if (newPwd !== confirmPwd) {
+    showAccountStatusMsg('New password and confirmation do not match.', 'error');
+    return;
+  }
+
+  var btn = document.getElementById('save-pwd-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Updating...';
+  }
+
+  authFetch('/auth/change-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ old_password: oldPwd, new_password: newPwd })
+  })
+  .then(function(res) {
+    return res.json().then(function(data) {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Update Password';
+      }
+      if (!res.ok) {
+        showAccountStatusMsg(data.detail || data.error || 'Failed to update password.', 'error');
+        return;
+      }
+      showAccountStatusMsg('Password updated successfully.', 'success');
+      document.getElementById('acc-old-pwd').value = '';
+      document.getElementById('acc-new-pwd').value = '';
+      document.getElementById('acc-confirm-pwd').value = '';
+    });
+  })
+  .catch(function() {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Update Password';
+    }
+    showAccountStatusMsg('Cannot connect to server. Please try again.', 'error');
+  });
+}
+
+function fetchDailyUsage() {
+  authFetch('/auth/daily-usage')
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (!data || data.detail) return;
+
+    var today = data.today || {};
+    var used = today.tokens_used || 0;
+    var limit = data.daily_quota || 50000;
+    var remaining = today.tokens_remaining !== undefined ? today.tokens_remaining : Math.max(0, limit - used);
+    var saved = today.tokens_saved || 0;
+    var cost = today.cost_usd || 0.0;
+    var calls = today.calls || 0;
+    var percent = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+
+    var elUsed = document.getElementById('daily-tokens-used');
+    var elLimit = document.getElementById('daily-tokens-limit');
+    var elFill = document.getElementById('daily-progress-fill');
+    var elRem = document.getElementById('daily-tokens-remaining');
+    var elSaved = document.getElementById('daily-tokens-saved');
+    var elCost = document.getElementById('daily-cost-usd');
+    var elCalls = document.getElementById('daily-calls-count');
+
+    if (elUsed) elUsed.textContent = used.toLocaleString() + ' tokens (' + percent + '%)';
+    if (elLimit) elLimit.textContent = limit.toLocaleString() + ' tokens';
+    if (elFill) elFill.style.width = percent + '%';
+    if (elRem) elRem.textContent = remaining.toLocaleString() + ' tokens';
+    if (elSaved) elSaved.textContent = saved.toLocaleString() + ' saved';
+    if (elCost) elCost.textContent = 'USD ' + Number(cost).toFixed(4);
+    if (elCalls) elCalls.textContent = calls + ' calls';
+
+    // Populate Daily History List
+    var historyContainer = document.getElementById('daily-history-table');
+    if (historyContainer && data.history) {
+      if (data.history.length === 0) {
+        historyContainer.innerHTML = '<div style="font-size:11px; color:var(--text-muted); text-align:center; padding:12px;">No activity logged yet. Start chatting to view daily usage.</div>';
+      } else {
+        var html = '';
+        data.history.forEach(function(row) {
+          html += '<div class="history-row">';
+          html += '  <span class="hist-date">' + row.date + '</span>';
+          html += '  <span class="hist-toks">' + (row.total_tokens || 0).toLocaleString() + ' tokens</span>';
+          html += '  <span class="hist-cst">USD ' + Number(row.cost_usd || 0).toFixed(4) + '</span>';
+          html += '</div>';
+        });
+        historyContainer.innerHTML = html;
+      }
+    }
+  })
+  .catch(function(err) {
+    console.warn('Failed to fetch daily usage:', err);
+  });
+}
+
+function updateSubscriptionTierUI(activeTier) {
+  var tiers = ['Free', 'Pro', 'Enterprise'];
+  tiers.forEach(function(tier) {
+    var card = document.getElementById('tier-card-' + tier);
+    var badge = document.getElementById('badge-tier-' + tier);
+    var btn = document.getElementById('btn-tier-' + tier);
+
+    if (card && badge && btn) {
+      if (tier === activeTier) {
+        card.classList.add('highlight');
+        badge.style.display = 'inline-block';
+        btn.textContent = 'Current Plan';
+        btn.classList.remove('primary');
+        btn.disabled = true;
+      } else {
+        if (tier !== 'Pro') card.classList.remove('highlight');
+        badge.style.display = 'none';
+        btn.textContent = 'Switch to ' + tier;
+        btn.classList.add('primary');
+        btn.disabled = false;
+      }
+    }
+  });
+}
+
+function selectSubscriptionTier(tier) {
+  var btn = document.getElementById('btn-tier-' + tier);
+  if (btn) btn.textContent = 'Switching...';
+
+  authFetch('/auth/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subscription_tier: tier })
+  })
+  .then(function(res) {
+    return res.json().then(function() {
+      showAccountStatusMsg('Subscribed to ' + tier + ' plan successfully!', 'success');
+      updateSubscriptionTierUI(tier);
+      fetchDailyUsage();
+    });
+  })
+  .catch(function() {
+    showAccountStatusMsg('Failed to update subscription tier.', 'error');
+  });
+}
+
+function loadAccountPreferencesUI() {
+  var t = document.documentElement.getAttribute('data-theme') || 'dark';
+  var darkPill = document.getElementById('theme-pill-dark');
+  var lightPill = document.getElementById('theme-pill-light');
+  if (darkPill && lightPill) {
+    if (t === 'dark') {
+      darkPill.classList.add('active');
+      lightPill.classList.remove('active');
+    } else {
+      lightPill.classList.add('active');
+      darkPill.classList.remove('active');
+    }
+  }
+
+  var effSelect = document.getElementById('acc-efficiency');
+  var savedEff = localStorage.getItem('tb_efficiency') || 'medium';
+  if (effSelect) effSelect.value = savedEff;
+}
+
+function setAppTheme(theme) {
+  var html = document.documentElement;
+  html.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+  updateThemeIcons(theme);
+  loadAccountPreferencesUI();
+}
+
+function onAccountLanguageChange(lang) {
+  authFetch('/auth/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ language: lang })
+  })
+  .then(function() {
+    showAccountStatusMsg('Language preference updated.', 'success');
+  })
+  .catch(function() {});
+}
+
+function onAccountEfficiencyChange(level) {
+  localStorage.setItem('tb_efficiency', level);
+  var effSelect = document.getElementById('efficiency-select');
+  if (effSelect) effSelect.value = level;
+  updateEfficiencyUI(level);
+}
+
+function saveAccountPreferences() {
+  var langSelect = document.getElementById('acc-language');
+  var lang = langSelect ? langSelect.value : 'en';
+  var effSelect = document.getElementById('acc-efficiency');
+  var eff = effSelect ? effSelect.value : 'medium';
+
+  localStorage.setItem('tb_efficiency', eff);
+  updateEfficiencyUI(eff);
+
+  authFetch('/auth/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ language: lang })
+  })
+  .then(function() {
+    showAccountStatusMsg('Preferences saved successfully.', 'success');
+  })
+  .catch(function() {
+    showAccountStatusMsg('Failed to save preferences.', 'error');
+  });
+}
+
+
 

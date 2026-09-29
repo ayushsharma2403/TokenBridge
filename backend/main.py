@@ -28,7 +28,8 @@ from tokenvault      import log, session_stats, global_stats, COSTS
 from auth            import (
     register_user, login_user,
     get_user_from_token,
-    generate_reset_token, reset_password, update_password_by_email
+    generate_reset_token, reset_password, update_password_by_email,
+    change_user_password, update_user_profile
 )
 from oauth           import get_google_login_url, handle_google_callback
 from email_service   import send_reset_email, send_otp_email
@@ -249,6 +250,137 @@ async def reset_pwd(req: ResetPasswordRequest):
 @app.get("/auth/me")
 async def get_me(authorization: Optional[str] = Header(None)):
     return get_current_user(authorization)
+
+
+class ProfileUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    dob: Optional[str] = None
+    age: Optional[int] = None
+    subscription_tier: Optional[str] = None
+    language: Optional[str] = None
+
+@app.post("/auth/profile")
+async def update_profile_endpoint(req: ProfileUpdateRequest, authorization: Optional[str] = Header(None)):
+    user = get_current_user(authorization)
+    # If dob is provided and age is not explicitly set, calculate age
+    age = req.age
+    if req.dob and req.dob.strip() and not age:
+        try:
+            from datetime import datetime
+            born = datetime.strptime(req.dob.strip(), "%Y-%m-%d")
+            today = datetime.today()
+            age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+        except Exception:
+            pass
+
+    updated = update_user_profile(
+        user_id=user["user_id"],
+        name=req.name,
+        dob=req.dob,
+        age=age,
+        subscription_tier=req.subscription_tier,
+        language=req.language
+    )
+    return updated
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: Optional[str] = ""
+    new_password: str
+
+@app.post("/auth/change-password")
+async def change_password_endpoint(req: ChangePasswordRequest, authorization: Optional[str] = Header(None)):
+    user = get_current_user(authorization)
+    if len(req.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters.")
+    res = change_user_password(user["user_id"], req.old_password or "", req.new_password)
+    if "error" in res:
+        raise HTTPException(status_code=400, detail=res["error"])
+    return res
+
+
+@app.get("/auth/daily-usage")
+async def get_daily_usage(authorization: Optional[str] = Header(None)):
+    user = get_current_user(authorization)
+    user_id = user["user_id"]
+    from database import connect
+    from datetime import datetime, timedelta
+    conn = connect()
+    c = conn.cursor()
+
+    # Query last 7 days of daily token usage for this user
+    c.execute("""
+        SELECT DATE(logged_at) as usage_date,
+               provider,
+               COALESCE(SUM(total_tokens), 0) as tokens,
+               COALESCE(SUM(cost_usd), 0.0) as cost,
+               COALESCE(SUM(tokens_saved), 0) as saved,
+               COUNT(*) as calls
+        FROM tokenvault
+        WHERE (user_id = %s OR (user_id IS NULL AND logged_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)))
+        GROUP BY DATE(logged_at), provider
+        ORDER BY usage_date DESC
+        LIMIT 30
+    """, (user_id,))
+    rows = c.fetchall()
+
+    # Today's specific totals
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_tokens = 0
+    today_cost = 0.0
+    today_saved = 0
+    today_calls = 0
+
+    daily_map = {}
+    for row in rows:
+        d_str = str(row[0])
+        prov = row[1]
+        toks = int(row[2])
+        cst = round(float(row[3]), 6)
+        svd = int(row[4])
+        cls = int(row[5])
+
+        if d_str == today_str:
+            today_tokens += toks
+            today_cost += cst
+            today_saved += svd
+            today_calls += cls
+
+        if d_str not in daily_map:
+            daily_map[d_str] = {"date": d_str, "total_tokens": 0, "cost_usd": 0.0, "tokens_saved": 0, "calls": 0, "by_provider": {}}
+        daily_map[d_str]["total_tokens"] += toks
+        daily_map[d_str]["cost_usd"] = round(daily_map[d_str]["cost_usd"] + cst, 6)
+        daily_map[d_str]["tokens_saved"] += svd
+        daily_map[d_str]["calls"] += cls
+        daily_map[d_str]["by_provider"][prov] = {"tokens": toks, "cost_usd": cst, "calls": cls}
+
+    c.close()
+    conn.close()
+
+    # Daily quota limit based on subscription tier
+    tier = user.get("subscription_tier") or "Free"
+    tier_limits = {
+        "Free": 50000,
+        "Pro": 500000,
+        "Enterprise": 2000000
+    }
+    daily_quota = tier_limits.get(tier, 50000)
+
+    return {
+        "user_id": user_id,
+        "subscription_tier": tier,
+        "daily_quota": daily_quota,
+        "today": {
+            "date": today_str,
+            "tokens_used": today_tokens,
+            "tokens_remaining": max(0, daily_quota - today_tokens),
+            "quota_percent": round(min(100.0, (today_tokens / daily_quota) * 100), 1) if daily_quota > 0 else 0,
+            "cost_usd": round(today_cost, 6),
+            "tokens_saved": today_saved,
+            "calls": today_calls
+        },
+        "history": list(daily_map.values())
+    }
 
 
 class EmailCheck(BaseModel):
