@@ -152,6 +152,7 @@ function sendEmailVerificationOTP(email) {
 }
 
 function clearOtpInputs() {
+  origOtpSubtitle = "";
   var ids = ["otp-1","otp-2","otp-3","otp-4","otp-5","otp-6"];
   ids.forEach(function(id) {
     var el = document.getElementById(id);
@@ -160,6 +161,7 @@ function clearOtpInputs() {
       el.readOnly = false;
       el.classList.remove("in-orbit");
       el.classList.remove("collapsed");
+      el.classList.remove("active-glow");
       el.style.transform = "";
       el.style.opacity = "";
     }
@@ -181,6 +183,17 @@ function clearOtpInputs() {
   }
   var badge = document.getElementById("otp-success-badge");
   if (badge) badge.classList.remove("show");
+  var title = document.getElementById("otp-modal-title");
+  if (title) {
+    title.classList.remove("otp-success-title");
+    if (currentOtpMode === "email") {
+      title.textContent = "Verify your email";
+    } else if (currentOtpMode === "email_reset") {
+      title.textContent = "Reset password";
+    } else {
+      title.textContent = "Enter OTP";
+    }
+  }
   var btn = document.getElementById("verify-otp-btn");
   if (btn) {
     btn.style.display = "";
@@ -554,7 +567,15 @@ function stopOtpAnimation(errorMsg) {
     inp.style.transform = "";
   });
 
-  if (title) title.textContent = "Enter OTP";
+  if (title) {
+    if (currentOtpMode === "email") {
+      title.textContent = "Verify your email";
+    } else if (currentOtpMode === "email_reset") {
+      title.textContent = "Reset password";
+    } else {
+      title.textContent = "Enter OTP";
+    }
+  }
   if (sub && origOtpSubtitle) sub.textContent = origOtpSubtitle;
   if (btn) {
     btn.style.display = "";
@@ -598,8 +619,13 @@ function playOtpSuccessAnimation(onComplete) {
     title.classList.add("otp-success-title");
   }
   if (sub) {
-    sub.textContent = "Your number has been verified.";
+    if (currentOtpMode === "email" || currentOtpMode === "email_reset") {
+      sub.textContent = "Your email has been verified.";
+    } else {
+      sub.textContent = "Your number has been verified.";
+    }
   }
+
 
   if (radarRings) radarRings.classList.add("success");
 
