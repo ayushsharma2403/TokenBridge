@@ -79,6 +79,10 @@
       <div class="modal-title">Create account</div>
       <div class="email-shown" id="signup-email"></div>
       <input class="email-input" type="text" id="name-input" placeholder="Full name" style="margin-bottom:12px">
+      <div class="form-group" style="margin-bottom:12px; text-align:left;">
+        <label for="signup-dob" style="font-size:11px; font-weight:700; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px;">Date of Birth</label>
+        <input class="email-input" type="date" id="signup-dob" title="Date of Birth" style="width:100%;">
+      </div>
       <div class="password-input-wrap">
         <input class="email-input" type="password" id="signup-pwd" placeholder="Password (min 8 chars)" onkeydown="if(event.key==='Enter')submitSignup()">
         <button type="button" class="pwd-toggle-btn" onclick="togglePasswordVisibility('signup-pwd', this)" aria-label="Toggle password visibility" title="Show/Hide Password">
@@ -157,9 +161,13 @@
     </div>
 
     <div id="step-name" class="step">
-      <div class="modal-title">What's your name?</div>
-      <div class="modal-sub">Tell us your name so we know how to address you.</div>
-      <input class="email-input" type="text" id="phone-user-name" placeholder="Full name" style="margin-bottom:12px" onkeydown="if(event.key==='Enter')submitPhoneUserName()">
+      <div class="modal-title">Complete your profile</div>
+      <div class="modal-sub">Tell us your name and date of birth to set up your account.</div>
+      <input class="email-input" type="text" id="phone-user-name" placeholder="Full name" style="margin-bottom:12px">
+      <div class="form-group" style="margin-bottom:12px; text-align:left;">
+        <label for="phone-user-dob" style="font-size:11px; font-weight:700; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px;">Date of Birth</label>
+        <input class="email-input" type="date" id="phone-user-dob" title="Date of Birth" style="width:100%;">
+      </div>
       <button class="continue-btn" id="phone-name-btn" onclick="submitPhoneUserName()">Continue</button>
     </div>
 

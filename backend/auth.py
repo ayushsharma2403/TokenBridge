@@ -84,7 +84,7 @@ def setup_users_table():
 # Register
 # -------------------------------------------------------
 
-def register_user(name: str, email: str, password: str) -> dict:
+def register_user(name: str, email: str, password: str, dob: Optional[str] = None) -> dict:
     conn = connect()
     c    = conn.cursor()
 
@@ -95,16 +95,27 @@ def register_user(name: str, email: str, password: str) -> dict:
         conn.close()
         return {"error": "Email already registered."}
 
+    age = None
+    clean_dob = dob.strip() if dob and dob.strip() else None
+    if clean_dob:
+        try:
+            from datetime import datetime
+            born = datetime.strptime(clean_dob, "%Y-%m-%d")
+            today = datetime.today()
+            age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+        except Exception:
+            pass
+
     c.execute(
-        "INSERT INTO users (name, email, password_hash) VALUES (%s, %s, %s)",
-        (name, email, hash_password(password))
+        "INSERT INTO users (name, email, password_hash, dob, age) VALUES (%s, %s, %s, %s, %s)",
+        (name, email, hash_password(password), clean_dob, age)
     )
     conn.commit()
     user_id = c.lastrowid
     c.close()
     conn.close()
 
-    return {"user_id": user_id, "name": name, "email": email}
+    return {"user_id": user_id, "name": name, "email": email, "dob": clean_dob, "age": age}
 
 
 # -------------------------------------------------------

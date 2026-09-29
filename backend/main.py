@@ -106,7 +106,7 @@ async def register(req: RegisterRequest):
     if rec and not rec.get("verified"):
         raise HTTPException(status_code=400, detail="Please verify your email with OTP first.")
 
-    result = register_user(req.name, email, req.password)
+    result = register_user(req.name, email, req.password, dob=req.dob)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     
@@ -129,7 +129,7 @@ async def login(req: LoginRequest):
 
 @app.post("/auth/phone", response_model=AuthResponse)
 async def auth_phone(req: PhoneAuthRequest):
-    result = login_with_phone(req.firebase_token, req.name)
+    result = login_with_phone(req.firebase_token, req.name, dob=req.dob)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return AuthResponse(**result)

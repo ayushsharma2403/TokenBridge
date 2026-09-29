@@ -21,9 +21,10 @@ GOOGLE_CLIENT_ID     = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 REDIRECT_URI         = os.getenv("APP_URL", "http://localhost:8000") + "/auth/google/callback"
 
-GOOGLE_AUTH_URL  = "https://accounts.google.com/o/oauth2/v2/auth"
-GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
-GOOGLE_USER_URL  = "https://www.googleapis.com/oauth2/v2/userinfo"
+GOOGLE_AUTH_URL   = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL  = "https://oauth2.googleapis.com/token"
+GOOGLE_USER_URL   = "https://www.googleapis.com/oauth2/v2/userinfo"
+GOOGLE_PEOPLE_URL = "https://people.googleapis.com/v1/people/me?personFields=birthdays"
 
 
 def get_google_login_url() -> str:
@@ -32,7 +33,7 @@ def get_google_login_url() -> str:
         f"client_id={GOOGLE_CLIENT_ID}"
         f"&redirect_uri={REDIRECT_URI}"
         f"&response_type=code"
-        f"&scope=openid email profile"
+        f"&scope=openid email profile https://www.googleapis.com/auth/user.birthday.read"
         f"&access_type=offline"
     )
     return f"{GOOGLE_AUTH_URL}?{params}"
@@ -41,6 +42,7 @@ def get_google_login_url() -> str:
 async def handle_google_callback(code: str) -> dict:
     """
     Exchanges the Google code for user info,
+    automatically extracts or calculates DOB and age,
     creates or finds the user in MySQL,
     and returns a JWT token.
     """
@@ -67,6 +69,36 @@ async def handle_google_callback(code: str) -> dict:
         )
         google_user = user_response.json()
 
+        # Step 2b: Auto-fetch DOB from Google People API
+        google_dob = None
+        google_age = None
+        try:
+            people_resp = await client.get(
+                GOOGLE_PEOPLE_URL,
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            if people_resp.status_code == 200:
+                people_data = people_resp.json()
+                birthdays = people_data.get("birthdays", [])
+                for b in birthdays:
+                    date_info = b.get("date", {})
+                    year  = date_info.get("year")
+                    month = date_info.get("month")
+                    day   = date_info.get("day")
+                    if year and month and day:
+                        google_dob = f"{year:04d}-{month:02d}-{day:02d}"
+                        from datetime import datetime
+                        born = datetime(year, month, day)
+                        today = datetime.today()
+                        google_age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+                        break
+                    elif month and day:
+                        # Fallback if Google user chose not to disclose birth year publicly
+                        google_dob = f"2000-{month:02d}-{day:02d}"
+                        break
+        except Exception as e:
+            print(f"[GoogleOAuth] Note: Could not auto-fetch birthday from People API: {e}")
+
     google_id = google_user.get("id")
     email     = google_user.get("email")
     name      = google_user.get("name", email)
@@ -80,7 +112,7 @@ async def handle_google_callback(code: str) -> dict:
 
     # Check if user exists by google_id or email
     c.execute(
-        "SELECT id, name FROM users WHERE google_id = %s OR email = %s",
+        "SELECT id, name, dob, age FROM users WHERE google_id = %s OR email = %s",
         (google_id, email)
     )
     existing = c.fetchone()
@@ -88,16 +120,22 @@ async def handle_google_callback(code: str) -> dict:
     if existing:
         user_id   = existing[0]
         user_name = existing[1]
-        # Update google_id if missing
-        c.execute(
-            "UPDATE users SET google_id = %s WHERE id = %s",
-            (google_id, user_id)
-        )
+        # Update google_id and auto-fetched DOB/age if not yet present in existing profile
+        if google_dob and not existing[2]:
+            c.execute(
+                "UPDATE users SET google_id = %s, dob = %s, age = %s WHERE id = %s",
+                (google_id, google_dob, google_age, user_id)
+            )
+        else:
+            c.execute(
+                "UPDATE users SET google_id = %s WHERE id = %s",
+                (google_id, user_id)
+            )
     else:
-        # Create new user
+        # Create new user with auto-fetched DOB & calculated age
         c.execute(
-            "INSERT INTO users (name, email, google_id) VALUES (%s, %s, %s)",
-            (name, email, google_id)
+            "INSERT INTO users (name, email, google_id, dob, age) VALUES (%s, %s, %s, %s, %s)",
+            (name, email, google_id, google_dob, google_age)
         )
         user_id   = c.lastrowid
         user_name = name
