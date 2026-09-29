@@ -28,7 +28,7 @@ def verify_firebase_token(id_token: str) -> dict:
         return {"valid": False, "error": str(e)}
 
 
-def login_with_phone(id_token: str, user_name: str = None) -> dict:
+def login_with_phone(id_token: str, user_name: str = None, dob: str = None) -> dict:
     verified = verify_firebase_token(id_token)
     if not verified["valid"]:
         return {"error": verified["error"]}
@@ -43,28 +43,43 @@ def login_with_phone(id_token: str, user_name: str = None) -> dict:
     c    = conn.cursor()
 
     c.execute(
-        "SELECT id, name, email FROM users WHERE google_id = %s",
+        "SELECT id, name, email, dob FROM users WHERE google_id = %s",
         (uid,)
     )
     existing = c.fetchone()
 
     clean_name = (user_name or "").strip()
+    clean_dob  = dob.strip() if dob and dob.strip() else None
+    age = None
+    if clean_dob:
+        try:
+            from datetime import datetime
+            born = datetime.strptime(clean_dob, "%Y-%m-%d")
+            today = datetime.today()
+            age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+        except Exception:
+            pass
 
     if existing:
         user_id = existing[0]
         name    = existing[1]
         email   = existing[2] or ""
+        curr_dob = str(existing[3]) if existing[3] else None
         # If user passed a custom name and existing name was just the phone or needs update
         if clean_name and (name == phone or name != clean_name):
             name = clean_name
             c.execute("UPDATE users SET name = %s WHERE id = %s", (name, user_id))
-            conn.commit()
+        if clean_dob:
+            curr_dob = clean_dob
+            c.execute("UPDATE users SET dob = %s, age = %s WHERE id = %s", (clean_dob, age, user_id))
+        conn.commit()
     else:
         name  = clean_name if clean_name else phone
         email = ""
+        curr_dob = clean_dob
         c.execute(
-            "INSERT INTO users (name, email, google_id) VALUES (%s, %s, %s)",
-            (name, None, uid)
+            "INSERT INTO users (name, email, google_id, dob, age) VALUES (%s, %s, %s, %s, %s)",
+            (name, None, uid, clean_dob, age)
         )
         conn.commit()
         user_id = c.lastrowid
@@ -78,6 +93,7 @@ def login_with_phone(id_token: str, user_name: str = None) -> dict:
         "user_id": user_id,
         "name":    name,
         "email":   email,
-        "phone":   phone
+        "phone":   phone,
+        "dob":     curr_dob
     }
 

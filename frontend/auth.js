@@ -266,13 +266,15 @@ function submitPassword() {
 
 function submitSignup() {
   var name = document.getElementById("name-input").value.trim();
+  var dob  = document.getElementById("signup-dob") ? document.getElementById("signup-dob").value : "";
   var pwd  = document.getElementById("signup-pwd").value;
   if (!name) { showMsg("Please enter your name.", "error"); return; }
+  if (!dob) { showMsg("Please enter your date of birth (DOB).", "error"); return; }
   if (pwd.length < 8) { showMsg("Password must be at least 8 characters.", "error"); return; }
   fetch(API + "/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: name, email: currentEmail, password: pwd })
+    body: JSON.stringify({ name: name, email: currentEmail, password: pwd, dob: dob })
   })
   .then(function(res) {
     return res.json().then(function(data) {
@@ -797,14 +799,19 @@ function verifyOTP() {
       }
       pendingPhoneAuthData = data;
       playOtpSuccessAnimation(function() {
-        // If the user's name is not yet set (or is just their phone number), ask for their name
+        // If the user's name is not yet set (or is just their phone number), or DOB is missing, ask to complete profile
         var isPhoneName = !data.name || data.name === data.phone || data.name.startsWith("+");
-        if (isPhoneName) {
+        var hasDob = !!data.dob;
+        if (isPhoneName || !hasDob) {
           showStep("name");
           var nameInput = document.getElementById("phone-user-name");
+          var dobInput = document.getElementById("phone-user-dob");
           if (nameInput) {
-            nameInput.value = "";
+            nameInput.value = (data.name && !data.name.startsWith("+")) ? data.name : "";
             nameInput.focus();
+          }
+          if (dobInput) {
+            dobInput.value = data.dob || "";
           }
         } else {
           saveAndRedirect(data);
@@ -819,11 +826,19 @@ function verifyOTP() {
 
 
 function submitPhoneUserName() {
-  var input = document.getElementById("phone-user-name");
-  var name = (input ? input.value : "").trim();
+  var nameInput = document.getElementById("phone-user-name");
+  var dobInput = document.getElementById("phone-user-dob");
+  var name = (nameInput ? nameInput.value : "").trim();
+  var dob = (dobInput ? dobInput.value : "").trim();
+
   if (!name) {
     showMsg("Please enter your name.", "error");
-    if (input) input.focus();
+    if (nameInput) nameInput.focus();
+    return;
+  }
+  if (!dob) {
+    showMsg("Please enter your date of birth (DOB).", "error");
+    if (dobInput) dobInput.focus();
     return;
   }
 
@@ -839,7 +854,8 @@ function submitPhoneUserName() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         firebase_token: pendingFirebaseIdToken,
-        name: name
+        name: name,
+        dob: dob
       })
     })
     .then(function(res) { return res.json(); })
@@ -855,16 +871,18 @@ function submitPhoneUserName() {
         btn.disabled = false;
         btn.textContent = "Continue";
       }
-      // Fallback with pendingPhoneAuthData updated with the chosen name
+      // Fallback with pendingPhoneAuthData updated with the chosen name & dob
       if (pendingPhoneAuthData) {
         pendingPhoneAuthData.name = name;
+        pendingPhoneAuthData.dob = dob;
         saveAndRedirect(pendingPhoneAuthData);
       } else {
-        showMsg("Failed to save name. Please try again.", "error");
+        showMsg("Failed to save profile. Please try again.", "error");
       }
     });
   } else if (pendingPhoneAuthData) {
     pendingPhoneAuthData.name = name;
+    pendingPhoneAuthData.dob = dob;
     saveAndRedirect(pendingPhoneAuthData);
   }
 }

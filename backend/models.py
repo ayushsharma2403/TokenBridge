@@ -10,6 +10,7 @@ class RegisterRequest(BaseModel):
     name:     str
     email:    str
     password: str
+    dob:      Optional[str] = None
 
 
 class LoginRequest(BaseModel):
@@ -37,6 +38,7 @@ class ResetPasswordWithOtpRequest(BaseModel):
 class PhoneAuthRequest(BaseModel):
     firebase_token: str
     name:           Optional[str] = None
+    dob:            Optional[str] = None
 
 
 class EmailOtpSendRequest(BaseModel):
