@@ -17,6 +17,25 @@ function updateAuthThemeIcon(theme) {
   if (btn) btn.textContent = theme === "dark" ? "🌙" : "☀️";
 }
 
+function togglePasswordVisibility(inputId, btn) {
+  var input = document.getElementById(inputId);
+  if (!input) return;
+  var isPassword = input.type === "password";
+  input.type = isPassword ? "text" : "password";
+
+  var icon = btn ? btn.querySelector("i") : null;
+  if (icon) {
+    if (isPassword) {
+      icon.className = "fa-regular fa-eye-slash";
+      btn.title = "Hide Password";
+    } else {
+      icon.className = "fa-regular fa-eye";
+      btn.title = "Show Password";
+    }
+  }
+}
+
+
 function showStep(id) {
   var steps = document.querySelectorAll(".step");
   for (var i = 0; i < steps.length; i++) {
@@ -25,7 +44,15 @@ function showStep(id) {
   var el = document.getElementById("step-" + id);
   if (el) el.classList.add("active");
   hideMsg();
+
+  if (id === "forgot" && currentEmail) {
+    var fEmail = document.getElementById("forgot-email");
+    if (fEmail && !fEmail.value) {
+      fEmail.value = currentEmail;
+    }
+  }
 }
+
 
 function showMsg(text, type) {
   var el = document.getElementById("auth-msg");
@@ -46,8 +73,11 @@ function saveAndRedirect(data) {
   window.location.href = "index.html";
 }
 
-var currentOtpMode = "phone"; // "phone" or "email"
+var currentOtpMode = "phone"; // "phone", "email", or "email_reset"
 var emailOtpVerified = false;
+var resetEmail = "";
+var verifiedResetOtp = "";
+
 
 function checkEmail() {
   var email = document.getElementById("email-input").value.trim().toLowerCase();
@@ -165,10 +195,16 @@ function clearOtpInputs() {
 }
 
 function handleOtpBack() {
-  if (currentOtpMode === "email") {
-    showStep("main");
-    var emailInput = document.getElementById("email-input");
-    if (emailInput) emailInput.focus();
+  if (currentOtpMode === "email" || currentOtpMode === "email_reset") {
+    if (currentOtpMode === "email_reset") {
+      showStep("forgot");
+      var forgotInput = document.getElementById("forgot-email");
+      if (forgotInput) forgotInput.focus();
+    } else {
+      showStep("main");
+      var emailInput = document.getElementById("email-input");
+      if (emailInput) emailInput.focus();
+    }
   } else {
     showStep("phone");
     var phoneInput = document.getElementById("phone-input");
@@ -184,10 +220,17 @@ function handleOtpResend(e) {
     } else {
       showStep("main");
     }
+  } else if (currentOtpMode === "email_reset") {
+    if (resetEmail) {
+      sendForgotPasswordOTP(resetEmail);
+    } else {
+      showStep("forgot");
+    }
   } else {
     showStep("phone");
   }
 }
+
 
 
 function submitPassword() {
@@ -664,12 +707,13 @@ function verifyOTP() {
 
   startOtpAnimation();
 
-  // If verifying email OTP
-  if (currentOtpMode === "email") {
+  // If verifying email OTP for signup or password reset
+  if (currentOtpMode === "email" || currentOtpMode === "email_reset") {
+    var targetEmail = (currentOtpMode === "email_reset") ? resetEmail : currentEmail;
     fetch(API + "/auth/email/verify-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: currentEmail, otp: otp })
+      body: JSON.stringify({ email: targetEmail, otp: otp })
     })
     .then(function(res) {
       return res.json().then(function(data) {
@@ -677,14 +721,27 @@ function verifyOTP() {
           stopOtpAnimation(data.detail || "Invalid verification code.");
           return;
         }
-        emailOtpVerified = true;
-        playOtpSuccessAnimation(function() {
-          // Email verified! Now prompt user to set their password (and name) to complete signup
-          document.getElementById("signup-email").textContent = currentEmail;
-          showStep("signup");
-          var nameInput = document.getElementById("name-input");
-          if (nameInput) nameInput.focus();
-        });
+        if (currentOtpMode === "email_reset") {
+          verifiedResetOtp = otp;
+          playOtpSuccessAnimation(function() {
+            document.getElementById("new-pwd-email").textContent = resetEmail;
+            showStep("new-password");
+            var pwdField = document.getElementById("new-password-input");
+            if (pwdField) {
+              pwdField.value = "";
+              pwdField.focus();
+            }
+          });
+        } else {
+          emailOtpVerified = true;
+          playOtpSuccessAnimation(function() {
+            // Email verified! Now prompt user to set their password (and name) to complete signup
+            document.getElementById("signup-email").textContent = currentEmail;
+            showStep("signup");
+            var nameInput = document.getElementById("name-input");
+            if (nameInput) nameInput.focus();
+          });
+        }
       });
     })
     .catch(function() {
@@ -692,6 +749,7 @@ function verifyOTP() {
     });
     return;
   }
+
 
   // Otherwise, verifying phone OTP with Firebase
   window.confirmationResult.confirm(otp)
@@ -786,17 +844,109 @@ function submitPhoneUserName() {
 }
 
 
-function submitForgot() {
-  var email = document.getElementById("forgot-email").value.trim();
-  if (!email) { showMsg("Please enter your email.", "error"); return; }
-  fetch(API + "/auth/forgot-password", {
+function sendForgotPasswordOTP(email) {
+  showMsg("Sending 6-digit verification code to " + email + "...", "info");
+  var forgotBtn = document.getElementById("forgot-btn");
+  if (forgotBtn) {
+    forgotBtn.disabled = true;
+    forgotBtn.textContent = "Sending OTP...";
+  }
+
+  fetch(API + "/auth/forgot-password-otp", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email: email })
   })
-  .then(function() { showMsg("Reset link sent! Check your email.", "success"); })
-  .catch(function() { showMsg("Cannot connect to server.", "error"); });
+  .then(function(res) {
+    return res.json().then(function(data) {
+      if (forgotBtn) {
+        forgotBtn.disabled = false;
+        forgotBtn.textContent = "Send OTP";
+      }
+      if (!res.ok) {
+        showMsg(data.detail || "Failed to send reset code.", "error");
+        return;
+      }
+      currentOtpMode = "email_reset";
+      resetEmail = email;
+      document.getElementById("otp-modal-title").textContent = "Reset password";
+      document.getElementById("otp-sent-to").textContent = "Verification code sent to " + email;
+      showStep("otp");
+      clearOtpInputs();
+      document.getElementById("otp-1").focus();
+    });
+  })
+  .catch(function() {
+    if (forgotBtn) {
+      forgotBtn.disabled = false;
+      forgotBtn.textContent = "Send OTP";
+    }
+    showMsg("Cannot connect to server. Is it running?", "error");
+  });
 }
+
+function submitForgot() {
+  var email = document.getElementById("forgot-email").value.trim().toLowerCase();
+  if (!email || !email.includes("@")) {
+    showMsg("Please enter a valid registered email.", "error");
+    return;
+  }
+  sendForgotPasswordOTP(email);
+}
+
+function submitNewPassword() {
+  var newPassword = document.getElementById("new-password-input").value;
+  if (!newPassword || newPassword.length < 8) {
+    showMsg("Password must be at least 8 characters.", "error");
+    return;
+  }
+
+  var btn = document.getElementById("save-new-pwd-btn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+  }
+
+  fetch(API + "/auth/reset-password-otp", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: resetEmail,
+      otp: verifiedResetOtp,
+      new_password: newPassword
+    })
+  })
+  .then(function(res) {
+    return res.json().then(function(data) {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Save New Password";
+      }
+      if (!res.ok) {
+        showMsg(data.detail || "Failed to reset password.", "error");
+        return;
+      }
+      showMsg("Password reset successfully! Please log in with your new password.", "success");
+      // Pre-fill email and redirect user to password step
+      currentEmail = resetEmail;
+      document.getElementById("pwd-email").textContent = resetEmail;
+      showStep("password");
+      var pwdInput = document.getElementById("pwd-input");
+      if (pwdInput) {
+        pwdInput.value = "";
+        pwdInput.focus();
+      }
+    });
+  })
+  .catch(function() {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Save New Password";
+    }
+    showMsg("Cannot connect to server. Please try again.", "error");
+  });
+}
+
 
 // Init on page load
 (function() {

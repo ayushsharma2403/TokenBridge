@@ -27,6 +27,13 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
+class ResetPasswordWithOtpRequest(BaseModel):
+    email:        str
+    otp:          str
+    new_password: str
+
+
+
 class PhoneAuthRequest(BaseModel):
     firebase_token: str
     name:           Optional[str] = None
@@ -117,3 +124,19 @@ class ModelLimits(BaseModel):
     description:  str
     input_rate:   float
     output_rate:  float
+
+
+class KeyValidationRequest(BaseModel):
+    provider: str
+    api_key:  str
+
+
+class KeyValidationResponse(BaseModel):
+    valid:       bool
+    provider:    str
+    model_name:  Optional[str] = None
+    max_tokens:  Optional[int] = None
+    description: Optional[str] = None
+    error:       Optional[str] = None
+    message:     Optional[str] = None
+

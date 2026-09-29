@@ -61,7 +61,12 @@
       <button class="back-link" onclick="showStep('main')">← Back</button>
       <div class="modal-title" id="pwd-title">Welcome back</div>
       <div class="email-shown" id="pwd-email"></div>
-      <input class="email-input" type="password" id="pwd-input" placeholder="Password" onkeydown="if(event.key===&apos;Enter&apos;)submitPassword()">
+      <div class="password-input-wrap">
+        <input class="email-input" type="password" id="pwd-input" placeholder="Password" onkeydown="if(event.key==='Enter')submitPassword()">
+        <button type="button" class="pwd-toggle-btn" onclick="togglePasswordVisibility('pwd-input', this)" aria-label="Toggle password visibility" title="Show/Hide Password">
+          <i class="fa-regular fa-eye"></i>
+        </button>
+      </div>
       <a href="#" class="forgot-link" onclick="showStep('forgot')">Forgot password?</a>
       <label style="display:flex;align-items:center;gap:8px;color:var(--text-sub);font-size:13px;margin-bottom:16px;cursor:pointer">
         <input type="checkbox" id="remember-me" style="accent-color:var(--accent)"> Remember me for 30 days
@@ -74,9 +79,15 @@
       <div class="modal-title">Create account</div>
       <div class="email-shown" id="signup-email"></div>
       <input class="email-input" type="text" id="name-input" placeholder="Full name" style="margin-bottom:12px">
-      <input class="email-input" type="password" id="signup-pwd" placeholder="Password (min 8 chars)" onkeydown="if(event.key===&apos;Enter&apos;)submitSignup()">
+      <div class="password-input-wrap">
+        <input class="email-input" type="password" id="signup-pwd" placeholder="Password (min 8 chars)" onkeydown="if(event.key==='Enter')submitSignup()">
+        <button type="button" class="pwd-toggle-btn" onclick="togglePasswordVisibility('signup-pwd', this)" aria-label="Toggle password visibility" title="Show/Hide Password">
+          <i class="fa-regular fa-eye"></i>
+        </button>
+      </div>
       <button class="continue-btn" onclick="submitSignup()" style="margin-top:12px">Create Account</button>
     </div>
+
 
     <div id="step-phone" class="step">
       <button class="back-link" onclick="showStep('main')">← Back</button>
@@ -155,10 +166,25 @@
     <div id="step-forgot" class="step">
       <button class="back-link" onclick="showStep('password')">← Back</button>
       <div class="modal-title">Reset password</div>
-      <div class="modal-sub">We will send a reset link to your email.</div>
-      <input class="email-input" type="email" id="forgot-email" placeholder="Email address">
-      <button class="continue-btn" onclick="submitForgot()">Send Reset Link</button>
+      <div class="modal-sub">We will send a 6-digit verification code to your email.</div>
+      <input class="email-input" type="email" id="forgot-email" placeholder="Email address" onkeydown="if(event.key==='Enter')submitForgot()">
+      <button class="continue-btn" id="forgot-btn" onclick="submitForgot()">Send OTP</button>
     </div>
+
+    <div id="step-new-password" class="step">
+      <button class="back-link" onclick="showStep('password')">← Back</button>
+      <div class="modal-title">Set new password</div>
+      <div class="modal-sub">Create a strong password for your account.</div>
+      <div class="email-shown" id="new-pwd-email"></div>
+      <div class="password-input-wrap">
+        <input class="email-input" type="password" id="new-password-input" placeholder="New Password (min 8 chars)" onkeydown="if(event.key==='Enter')submitNewPassword()">
+        <button type="button" class="pwd-toggle-btn" onclick="togglePasswordVisibility('new-password-input', this)" aria-label="Toggle password visibility" title="Show/Hide Password">
+          <i class="fa-regular fa-eye"></i>
+        </button>
+      </div>
+      <button class="continue-btn" id="save-new-pwd-btn" onclick="submitNewPassword()">Save New Password</button>
+    </div>
+
 
     <div class="msg" id="auth-msg"></div>
   </div>

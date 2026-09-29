@@ -629,6 +629,48 @@ body {
   color: var(--text-muted);
 }
 
+/* Password Input Wrap & Show Password Button */
+.password-input-wrap {
+  position: relative;
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+.password-input-wrap .email-input {
+  margin-bottom: 0;
+  padding-right: 42px;
+}
+
+.pwd-toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.pwd-toggle-btn:hover {
+  color: var(--text-pure);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="light"] .pwd-toggle-btn:hover {
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+
 
 /* Phone Number Input Group with Country Code Button */
 .phone-input-group {
@@ -4755,4 +4797,98 @@ iframe[src*="recaptcha"] {
 
 .markdown-body img:hover {
   transform: scale(1.01);
+}
+
+/* API Key Validation Status & Trigger Button */
+.key-verify-trigger-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: var(--glass-surface-elevated, rgba(255, 255, 255, 0.08));
+  color: var(--text-dim, #94a3b8);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.key-verify-trigger-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-pure, #ffffff);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.key-verify-trigger-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.api-key-status-msg {
+  margin-top: 6px;
+  margin-bottom: 12px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  padding: 8px 12px;
+  border-radius: 8px;
+  animation: fadeIn 0.2s ease-out;
+  word-break: break-word;
+}
+
+.api-key-status-msg.pending {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+}
+
+.api-key-status-msg.success {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+}
+
+.api-key-status-msg.error {
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  color: #fb7185;
+}
+
+[data-theme="light"] .key-verify-trigger-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #475569;
+}
+
+[data-theme="light"] .key-verify-trigger-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #0f172a;
+}
+
+[data-theme="light"] .api-key-status-msg.pending {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+
+[data-theme="light"] .api-key-status-msg.success {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+[data-theme="light"] .api-key-status-msg.error {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #9f1239;
+}
+
+.spinner-inline {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
 }

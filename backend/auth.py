@@ -215,3 +215,26 @@ def reset_password(token: str, new_password: str) -> dict:
     conn.close()
 
     return {"message": "Password reset successful."}
+
+
+def update_password_by_email(email: str, new_password: str) -> dict:
+    conn = connect()
+    c    = conn.cursor()
+
+    c.execute("SELECT id FROM users WHERE email = %s AND is_active = TRUE", (email.strip().lower(),))
+    user = c.fetchone()
+    if not user:
+        c.close()
+        conn.close()
+        return {"error": "User with this email not found."}
+
+    c.execute(
+        "UPDATE users SET password_hash = %s, reset_token = NULL, reset_expires = NULL WHERE id = %s",
+        (hash_password(new_password), user[0])
+    )
+    conn.commit()
+    c.close()
+    conn.close()
+
+    return {"message": "Password reset successful."}
+
