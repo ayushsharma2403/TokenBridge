@@ -1,6 +1,7 @@
 // app.js - TokenBridge Main Chat Logic
-// Dynamic API URL: Empty string when on port 8000, localhost:8000 when served on other ports (e.g. 5500)
-var API = (window.location.port === "8000") ? "" : "http://localhost:8000";
+var API = (window.location.port === "8000" || window.location.port === "")
+  ? "" 
+  : (window.location.protocol + "//" + window.location.hostname + ":8000");
 var sessionId = generateId();
 var messages  = [];
 var isLoading = false;
@@ -82,9 +83,13 @@ function toggleTheme() {
   var html     = document.documentElement;
   var isDark   = html.getAttribute('data-theme') === 'dark';
   var newTheme = isDark ? 'light' : 'dark';
+  html.classList.add('theme-transitioning');
   html.setAttribute('data-theme', newTheme);
   localStorage.setItem('theme', newTheme);
   updateThemeIcons(newTheme);
+  setTimeout(function() {
+    html.classList.remove('theme-transitioning');
+  }, 450);
 }
 
 function updateThemeIcons(theme) {
@@ -201,6 +206,8 @@ function openModelTokensDialog() {
   var overlay = document.getElementById('model-tokens-dialog-overlay');
   if (overlay) {
     overlay.style.display = 'flex';
+    overlay.classList.remove('is-closing');
+    overlay.classList.add('is-opening');
     // Refresh latest model limits, provider state and live usage
     var select = document.getElementById('provider-select');
     var provider = (select ? select.value : 'claude').toLowerCase();
@@ -220,7 +227,12 @@ function openModelTokensDialog() {
 function closeModelTokensDialog() {
   var overlay = document.getElementById('model-tokens-dialog-overlay');
   if (overlay) {
-    overlay.style.display = 'none';
+    overlay.classList.remove('is-opening');
+    overlay.classList.add('is-closing');
+    setTimeout(function() {
+      overlay.style.display = 'none';
+      overlay.classList.remove('is-closing');
+    }, 220);
   }
   document.removeEventListener('keydown', handleModelTokensEscapeKey);
 }
@@ -1361,9 +1373,10 @@ function getModelLogoSvg(provider) {
   }
 }
 
-function appendMessage(role, content, scroll, msgIndex, provider) {
+function appendMessage(role, content, scroll, msgIndex, provider, animateStreaming) {
   if (scroll === undefined) { scroll = true; }
   if (msgIndex === undefined) { msgIndex = messages.length - 1; }
+  if (animateStreaming === undefined) { animateStreaming = false; }
 
   var isAi = (role === 'ai' || role === 'assistant');
 
@@ -1402,7 +1415,30 @@ function appendMessage(role, content, scroll, msgIndex, provider) {
   var bubble = document.createElement('div');
   bubble.className   = 'message-bubble markdown-body';
   bubble.id          = 'msg-bubble-' + msgIndex;
-  if (isAi) {
+  
+  if (isAi && animateStreaming && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    // macOS fluid text streaming animation
+    bubble.classList.add('is-streaming');
+    var rawText = content || '';
+    var chunkSize = Math.max(2, Math.floor(rawText.length / 75));
+    var currentIndex = 0;
+    
+    function streamNextChunk() {
+      if (currentIndex < rawText.length) {
+        currentIndex = Math.min(rawText.length, currentIndex + chunkSize);
+        bubble.innerHTML = formatContent(rawText.substring(0, currentIndex));
+        enhanceCodeBlocks(bubble);
+        if (scroll) { area.scrollTop = area.scrollHeight; }
+        requestAnimationFrame(streamNextChunk);
+      } else {
+        bubble.classList.remove('is-streaming');
+        bubble.innerHTML = formatContent(rawText);
+        enhanceCodeBlocks(bubble);
+        if (scroll) { area.scrollTop = area.scrollHeight; }
+      }
+    }
+    requestAnimationFrame(streamNextChunk);
+  } else if (isAi) {
     bubble.innerHTML = formatContent(content);
     enhanceCodeBlocks(bubble);
   } else {
@@ -1789,7 +1825,7 @@ function sendSpecificMessage(text) {
       } else {
         var replyProvider = data.provider || provider;
         messages.push({ role: 'assistant', content: data.reply, provider: replyProvider });
-        appendMessage('ai', data.reply, true, messages.length - 1, replyProvider);
+        appendMessage('ai', data.reply, true, messages.length - 1, replyProvider, true);
         updateTokenMeter(data.tokens_remaining, budget);
         updateVaultRow(replyProvider, data.tokens_this_call);
         saveSessionToList();
@@ -1800,10 +1836,11 @@ function sendSpecificMessage(text) {
   .catch(function(err) {
     removeTyping();
     if (err && err.name === 'AbortError') {
-      // User aborted explicitly via Stop button, already handled
       return;
     }
-    appendMessage('ai', 'Could not reach the server. Make sure backend is running.');
+    console.error('Fetch error:', err);
+    var errMsg = (err && err.message) ? err.message : 'Could not reach the server. Make sure backend is running.';
+    appendMessage('ai', 'Connection error: ' + errMsg);
   })
   .finally(function() {
     isLoading = false;
@@ -1888,8 +1925,9 @@ function openPromptPanel() {
   var arrowBtn = document.getElementById('prompt-arrow-btn');
   if (!panel) return;
 
-  panel.classList.remove('hidden');
+  panel.classList.remove('hidden', 'is-closing');
   panel.classList.remove('minimized');
+  panel.classList.add('is-opening');
   panel.style.display = 'block';
   if (body) { body.style.display = 'flex'; }
   if (arrowBtn) {
@@ -1917,12 +1955,11 @@ function minimizePromptPanel(event) {
     return;
   }
 
-  var isMinimized = panel.classList.contains('minimized') || (body && body.style.display === 'none');
+  var isMinimized = panel.classList.contains('minimized');
 
   if (isMinimized) {
     // Expand
     panel.classList.remove('minimized');
-    if (body) { body.style.display = 'flex'; }
     if (arrowBtn) {
       arrowBtn.innerHTML = '&#9660;';
       arrowBtn.title = 'Minimize Prompt Engineer';
@@ -1930,9 +1967,8 @@ function minimizePromptPanel(event) {
     var raw = document.getElementById('raw-prompt');
     if (raw) { raw.focus(); }
   } else {
-    // Minimize (keep the header visible, hide the body)
+    // Minimize (keep the header visible, collapse body with smooth CSS spring)
     panel.classList.add('minimized');
-    if (body) { body.style.display = 'none'; }
     if (arrowBtn) {
       arrowBtn.innerHTML = '&#9650;';
       arrowBtn.title = 'Expand Prompt Engineer';
@@ -1949,14 +1985,18 @@ function closePromptPanel(event) {
   var arrowBtn = document.getElementById('prompt-arrow-btn');
   if (!panel) return;
 
-  panel.classList.add('hidden');
-  panel.classList.remove('minimized');
-  panel.style.display = 'none';
-  if (body) { body.style.display = 'flex'; }
-  if (arrowBtn) {
-    arrowBtn.innerHTML = '&#9660;';
-    arrowBtn.title = 'Minimize Prompt Engineer';
-  }
+  panel.classList.remove('is-opening');
+  panel.classList.add('is-closing');
+  setTimeout(function() {
+    panel.classList.add('hidden');
+    panel.classList.remove('minimized', 'is-closing');
+    panel.style.display = 'none';
+    if (body) { body.style.display = 'flex'; }
+    if (arrowBtn) {
+      arrowBtn.innerHTML = '&#9660;';
+      arrowBtn.title = 'Minimize Prompt Engineer';
+    }
+  }, 240);
   updatePromptButtons(false);
 }
 
@@ -2390,17 +2430,30 @@ function openAccountDialog() {
   var overlay = document.getElementById('account-dialog-overlay');
   if (overlay) {
     overlay.style.display = 'flex';
+    overlay.classList.remove('is-closing');
+    overlay.classList.add('is-opening');
     document.addEventListener('keydown', handleAccountEscapeKey);
     fetchUserProfile();
     fetchDailyUsage();
     loadAccountPreferencesUI();
+    if (typeof initTBCalendars === 'function') {
+      initTBCalendars();
+    }
+    setTimeout(function() {
+      updateAccountTabIndicator();
+    }, 60);
   }
 }
 
 function closeAccountDialog() {
   var overlay = document.getElementById('account-dialog-overlay');
   if (overlay) {
-    overlay.style.display = 'none';
+    overlay.classList.remove('is-opening');
+    overlay.classList.add('is-closing');
+    setTimeout(function() {
+      overlay.style.display = 'none';
+      overlay.classList.remove('is-closing');
+    }, 220);
   }
   document.removeEventListener('keydown', handleAccountEscapeKey);
   clearAccountStatusMsg();
@@ -2416,19 +2469,73 @@ function handleAccountOverlayClick(event) {
 function handleAccountEscapeKey(event) {
   if (event.key === 'Escape') {
     closeAccountDialog();
+  } else if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+    // Only intercept arrow keys if user is not typing in an input or textarea
+    var activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+    if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+    
+    var tabOrder = ['profile', 'security', 'usage', 'subscription', 'preferences', 'about'];
+    var activeBtn = document.querySelector('.account-tab-btn.active');
+    var currentTab = activeBtn ? activeBtn.getAttribute('data-tab') : 'profile';
+    var currentIndex = tabOrder.indexOf(currentTab);
+    if (currentIndex === -1) currentIndex = 0;
+
+    if (event.key === 'ArrowRight') {
+      var nextIndex = (currentIndex + 1) % tabOrder.length;
+      switchAccountTab(tabOrder[nextIndex]);
+    } else if (event.key === 'ArrowLeft') {
+      var prevIndex = (currentIndex - 1 + tabOrder.length) % tabOrder.length;
+      switchAccountTab(tabOrder[prevIndex]);
+    }
   }
+}
+
+function updateAccountTabIndicator(activeBtn) {
+  var nav = document.getElementById('account-tabs-nav');
+  var indicator = document.getElementById('account-tab-indicator');
+  if (!nav || !indicator) return;
+  if (!activeBtn) {
+    activeBtn = nav.querySelector('.account-tab-btn.active');
+  }
+  if (!activeBtn) {
+    nav.classList.remove('has-indicator');
+    return;
+  }
+  
+  var navRect = nav.getBoundingClientRect();
+  var btnRect = activeBtn.getBoundingClientRect();
+  
+  if (btnRect.width === 0 || navRect.width === 0) {
+    // Hidden or still rendering in modal
+    setTimeout(function() { updateAccountTabIndicator(activeBtn); }, 50);
+    return;
+  }
+
+  var leftOffset = (btnRect.left - navRect.left) + nav.scrollLeft;
+  var width = btnRect.width;
+
+  indicator.style.transform = 'translateX(' + leftOffset + 'px)';
+  indicator.style.width = width + 'px';
+  nav.classList.add('has-indicator');
 }
 
 function switchAccountTab(tabName) {
   clearAccountStatusMsg();
+  var activeBtn = null;
   var buttons = document.querySelectorAll('.account-tab-btn');
   buttons.forEach(function(btn) {
     if (btn.getAttribute('data-tab') === tabName) {
       btn.classList.add('active');
+      activeBtn = btn;
+      btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
     } else {
       btn.classList.remove('active');
     }
   });
+
+  if (activeBtn) {
+    updateAccountTabIndicator(activeBtn);
+  }
 
   var contents = document.querySelectorAll('.account-tab-content');
   contents.forEach(function(content) {
@@ -2446,6 +2553,13 @@ function switchAccountTab(tabName) {
     fetchDailyUsage();
   }
 }
+
+window.addEventListener('resize', function() {
+  var overlay = document.getElementById('account-dialog-overlay');
+  if (overlay && overlay.style.display === 'flex') {
+    updateAccountTabIndicator();
+  }
+});
 
 function showAccountStatusMsg(text, type) {
   var el = document.getElementById('account-status-msg');

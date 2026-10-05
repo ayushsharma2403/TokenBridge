@@ -46,7 +46,7 @@ def log(session_id: str, provider: str, input_tokens: int,
     return cost_usd
 
 
-def session_stats(session_id: str) -> dict:
+def session_stats(session_id: str, user_id: int = None) -> dict:
     """Token stats for one session broken down by provider."""
     conn = connect()
     c    = conn.cursor()
@@ -59,9 +59,9 @@ def session_stats(session_id: str) -> dict:
                COALESCE(SUM(tokens_saved), 0),
                COUNT(*)
         FROM tokenvault
-        WHERE session_id = %s
+        WHERE session_id = %s AND user_id = %s
         GROUP BY provider
-    """, (session_id,))
+    """, (session_id, user_id))
     rows = c.fetchall()
     c.close()
     conn.close()

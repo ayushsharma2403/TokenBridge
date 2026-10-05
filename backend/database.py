@@ -29,43 +29,48 @@ def setup():
     """)
     try:
         c.execute("ALTER TABLE users MODIFY email VARCHAR(150) NULL")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DB Migration] Skipped (likely already applied): {e}")
 
     try:
         c.execute("ALTER TABLE users ADD COLUMN dob DATE NULL AFTER email")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DB Migration] Skipped (likely already applied): {e}")
 
     try:
         c.execute("ALTER TABLE users ADD COLUMN age INT NULL AFTER dob")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DB Migration] Skipped (likely already applied): {e}")
 
     try:
         c.execute("ALTER TABLE users ADD COLUMN subscription_tier VARCHAR(50) DEFAULT 'Free' AFTER age")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DB Migration] Skipped (likely already applied): {e}")
 
     try:
         c.execute("ALTER TABLE users ADD COLUMN language VARCHAR(20) DEFAULT 'en' AFTER subscription_tier")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DB Migration] Skipped (likely already applied): {e}")
 
     try:
         c.execute("ALTER TABLE usage_log ADD COLUMN user_id INT AFTER session_id")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DB Migration] Skipped (likely already applied): {e}")
 
     try:
         c.execute("ALTER TABLE usage_log ADD COLUMN provider VARCHAR(50) DEFAULT 'claude' AFTER user_id")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DB Migration] Skipped (likely already applied): {e}")
 
     try:
         c.execute("ALTER TABLE tokenvault ADD COLUMN user_id INT AFTER session_id")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DB Migration] Skipped (likely already applied): {e}")
+
+    try:
+        c.execute("ALTER TABLE sessions ADD COLUMN user_id INT AFTER session_id")
+    except Exception as e:
+        print(f"[DB Migration] Skipped (likely already applied): {e}")
 
     c.execute("""
         CREATE TABLE IF NOT EXISTS sessions (

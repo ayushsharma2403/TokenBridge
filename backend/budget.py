@@ -12,28 +12,29 @@ from database import connect
 
 class Budget:
 
-    def __init__(self, session_id: str, total_tokens: int, provider: str = None):
+    def __init__(self, session_id: str, total_tokens: int, provider: str = None, user_id: int = None):
         self.session_id  = session_id
         self.total       = total_tokens
         self.provider    = (provider or "").strip().lower() if provider else None
+        self.user_id     = user_id
 
     # ------------------------------------------------------------------
     # Core calculations
     # ------------------------------------------------------------------
 
     def used_so_far(self) -> int:
-        """Total tokens spent across calls in this session (filtered by provider if specified)."""
+        """Total tokens spent across calls in this session (filtered by provider if specified and user_id)."""
         conn = connect()
         c = conn.cursor()
         if self.provider:
             c.execute(
-                "SELECT COALESCE(SUM(tokens_used), 0) FROM usage_log WHERE session_id = %s AND LOWER(provider) = %s",
-                (self.session_id, self.provider)
+                "SELECT COALESCE(SUM(tokens_used), 0) FROM usage_log WHERE session_id = %s AND LOWER(provider) = %s AND user_id = %s",
+                (self.session_id, self.provider, self.user_id)
             )
         else:
             c.execute(
-                "SELECT COALESCE(SUM(tokens_used), 0) FROM usage_log WHERE session_id = %s",
-                (self.session_id,)
+                "SELECT COALESCE(SUM(tokens_used), 0) FROM usage_log WHERE session_id = %s AND user_id = %s",
+                (self.session_id, self.user_id)
             )
         row = c.fetchone()
         conn.close()
@@ -59,12 +60,13 @@ class Budget:
         Records how many tokens an API call used, including the provider.
         call_type can be 'chat' or 'summarize' (optimizer calls are logged too).
         """
+        uid = user_id if user_id is not None else self.user_id
         prov = provider or self.provider or "claude"
         conn = connect()
         c = conn.cursor()
         c.execute(
             "INSERT INTO usage_log (session_id, user_id, provider, tokens_used, call_type, logged_at) VALUES (%s, %s, %s, %s, %s, %s)",
-            (self.session_id, user_id, prov, tokens, call_type, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            (self.session_id, uid, prov, tokens, call_type, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         )
         conn.commit()
         conn.close()

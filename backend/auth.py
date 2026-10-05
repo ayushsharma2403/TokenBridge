@@ -1,5 +1,5 @@
 """
-auth.py � User authentication
+auth.py — User authentication
 
 Handles: registration, login, JWT tokens, password reset
 """
@@ -15,7 +15,13 @@ from passlib.context import CryptContext
 from database import connect
 
 # --- Config ---
-SECRET_KEY      = os.getenv("JWT_SECRET", "tokenbridge-secret-change-in-production")
+SECRET_KEY = os.getenv("JWT_SECRET")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "JWT_SECRET environment variable is not set. "
+        "Set it in your .env file before starting the server."
+    )
+
 ALGORITHM       = "HS256"
 TOKEN_EXPIRE    = 30    # days (normal login)
 REMEMBER_EXPIRE = 30    # days (remember me)
@@ -95,18 +101,22 @@ def register_user(name: str, email: str, password: str, dob: Optional[str] = Non
         conn.close()
         return {"error": "Email already registered."}
 
-    age = None
     clean_dob = dob.strip() if dob and dob.strip() else None
-    if clean_dob:
-        try:
-            from datetime import datetime
-            born = datetime.strptime(clean_dob, "%Y-%m-%d")
-            today = datetime.today()
-            age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
-        except Exception:
-            pass
+    if not clean_dob:
+        c.close()
+        conn.close()
+        return {"error": "Date of birth is required."}
 
-    if age is not None and age < 18:
+    age = None
+    try:
+        from datetime import datetime
+        born = datetime.strptime(clean_dob, "%Y-%m-%d")
+        today = datetime.today()
+        age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+    except Exception:
+        pass
+
+    if age is None or age < 18:
         c.close()
         conn.close()
         return {"error": "Access restricted: You must be at least 18 years old."}
@@ -159,7 +169,7 @@ def login_user(email: str, password: str, remember_me: bool = False) -> dict:
 
 
 # -------------------------------------------------------
-# Get current user from token
+# Get user from token
 # -------------------------------------------------------
 
 def get_user_from_token(token: str) -> Optional[dict]:
@@ -243,19 +253,19 @@ def reset_password(token: str, new_password: str) -> dict:
     c.close()
     conn.close()
 
-    return {"message": "Password reset successful."}
+    return {"message": "Password updated successfully."}
 
 
 def update_password_by_email(email: str, new_password: str) -> dict:
     conn = connect()
     c    = conn.cursor()
 
-    c.execute("SELECT id FROM users WHERE email = %s AND is_active = TRUE", (email.strip().lower(),))
+    c.execute("SELECT id FROM users WHERE email = %s AND is_active = TRUE", (email,))
     user = c.fetchone()
     if not user:
         c.close()
         conn.close()
-        return {"error": "User with this email not found."}
+        return {"error": "No registered account found with this email."}
 
     c.execute(
         "UPDATE users SET password_hash = %s, reset_token = NULL, reset_expires = NULL WHERE id = %s",
@@ -265,12 +275,13 @@ def update_password_by_email(email: str, new_password: str) -> dict:
     c.close()
     conn.close()
 
-    return {"message": "Password reset successful."}
+    return {"message": "Password updated successfully."}
 
 
 def change_user_password(user_id: int, old_password: str, new_password: str) -> dict:
     conn = connect()
     c    = conn.cursor()
+
     c.execute("SELECT password_hash FROM users WHERE id = %s AND is_active = TRUE", (user_id,))
     row = c.fetchone()
     if not row:
@@ -278,18 +289,21 @@ def change_user_password(user_id: int, old_password: str, new_password: str) -> 
         conn.close()
         return {"error": "User not found."}
 
-    curr_hash = row[0]
-    # If user has an existing password, verify old password
-    if curr_hash and not verify_password(old_password, curr_hash):
-        c.close()
-        conn.close()
-        return {"error": "Current password is incorrect."}
+    current_hash = row[0]
+    if current_hash:
+        if not old_password or not verify_password(old_password, current_hash):
+            c.close()
+            conn.close()
+            return {"error": "Current password does not match."}
 
-    c.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hash_password(new_password), user_id))
+    c.execute(
+        "UPDATE users SET password_hash = %s WHERE id = %s",
+        (hash_password(new_password), user_id)
+    )
     conn.commit()
     c.close()
     conn.close()
-    return {"message": "Password updated successfully."}
+    return {"message": "Password changed successfully."}
 
 
 def update_user_profile(user_id: int, name: Optional[str] = None, dob: Optional[str] = None,
@@ -344,5 +358,3 @@ def update_user_profile(user_id: int, name: Optional[str] = None, dob: Optional[
         "language": u[6] or "en",
         "created_at": str(u[7]) if u[7] else None
     }
-
-

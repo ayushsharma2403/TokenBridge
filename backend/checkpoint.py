@@ -14,8 +14,9 @@ from database import connect
 
 class Checkpoint:
 
-    def __init__(self, session_id: str):
+    def __init__(self, session_id: str, user_id: int = None):
         self.session_id = session_id
+        self.user_id = user_id
 
     # ------------------------------------------------------------------
     # Save
@@ -31,14 +32,16 @@ class Checkpoint:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         c.execute("""
-            INSERT INTO sessions (session_id, messages, provider, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO sessions (session_id, user_id, messages, provider, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
+                user_id    = COALESCE(VALUES(user_id), user_id),
                 messages   = VALUES(messages),
                 provider   = VALUES(provider),
                 updated_at = VALUES(updated_at)
         """, (
             self.session_id,
+            self.user_id,
             json.dumps(messages),   # list → JSON string for storage
             provider,
             now,
@@ -55,14 +58,17 @@ class Checkpoint:
     def load(self) -> list:
         """
         Loads conversation history from the database.
-        Returns an empty list if no checkpoint exists yet (fresh session).
+        Returns an empty list if no checkpoint exists yet or user_id is None.
         """
+        if self.user_id is None:
+            return []
+
         conn = connect()
         c = conn.cursor(dictionary=True)
 
         c.execute(
-            "SELECT messages FROM sessions WHERE session_id = %s",
-            (self.session_id,)
+            "SELECT messages FROM sessions WHERE session_id = %s AND user_id = %s",
+            (self.session_id, self.user_id)
         )
         row = c.fetchone()
         conn.close()
@@ -73,11 +79,14 @@ class Checkpoint:
         return []  # no checkpoint found, start fresh
 
     def get_provider(self) -> Optional[str]:
+        if self.user_id is None:
+            return None
+
         conn = connect()
         c = conn.cursor(dictionary=True)
         c.execute(
-            "SELECT provider FROM sessions WHERE session_id = %s",
-            (self.session_id,)
+            "SELECT provider FROM sessions WHERE session_id = %s AND user_id = %s",
+            (self.session_id, self.user_id)
         )
         row = c.fetchone()
         conn.close()
@@ -89,15 +98,20 @@ class Checkpoint:
 
     def exists(self) -> bool:
         """Returns True if a saved checkpoint exists for this session."""
+        if self.user_id is None:
+            return False
         return len(self.load()) > 0
 
     def delete(self) -> None:
         """Wipes the checkpoint — for when a user wants a clean start."""
+        if self.user_id is None:
+            return
+
         conn = connect()
         c = conn.cursor()
         c.execute(
-            "DELETE FROM sessions WHERE session_id = %s",
-            (self.session_id,)
+            "DELETE FROM sessions WHERE session_id = %s AND user_id = %s",
+            (self.session_id, self.user_id)
         )
         conn.commit()
         conn.close()
@@ -107,11 +121,14 @@ class Checkpoint:
         Returns metadata about the checkpoint — used by the frontend
         to show the user when their last session was saved.
         """
+        if self.user_id is None:
+            return {}
+
         conn = connect()
         c = conn.cursor(dictionary=True)
         c.execute(
-            "SELECT provider, created_at, updated_at FROM sessions WHERE session_id = %s",
-            (self.session_id,)
+            "SELECT provider, created_at, updated_at FROM sessions WHERE session_id = %s AND user_id = %s",
+            (self.session_id, self.user_id)
         )
         row = c.fetchone()
         conn.close()

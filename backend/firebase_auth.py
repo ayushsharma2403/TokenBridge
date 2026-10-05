@@ -12,7 +12,7 @@ if not firebase_admin._apps:
 
 def verify_firebase_token(id_token: str) -> dict:
     try:
-        decoded = auth.verify_id_token(id_token, check_revoked=False)
+        decoded = auth.verify_id_token(id_token, check_revoked=False, clock_skew_seconds=60)
         return {
             "uid":   decoded.get("uid"),
             "phone": decoded.get("phone_number"),

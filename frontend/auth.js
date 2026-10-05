@@ -7,9 +7,13 @@ function toggleTheme() {
   var html = document.documentElement;
   var isDark = html.getAttribute("data-theme") === "dark";
   var newTheme = isDark ? "light" : "dark";
+  html.classList.add("theme-transitioning");
   html.setAttribute("data-theme", newTheme);
   localStorage.setItem("theme", newTheme);
   updateAuthThemeIcon(newTheme);
+  setTimeout(function() {
+    html.classList.remove("theme-transitioning");
+  }, 450);
 }
 
 function updateAuthThemeIcon(theme) {
@@ -51,6 +55,10 @@ function showStep(id) {
       fEmail.value = currentEmail;
     }
   }
+
+  if (typeof initTBCalendars === "function") {
+    initTBCalendars();
+  }
 }
 
 
@@ -70,7 +78,18 @@ function saveAndRedirect(data) {
   localStorage.setItem("tb_user_id", String(data.user_id));
   localStorage.setItem("tb_name",    data.name);
   localStorage.setItem("tb_email",   data.email || "");
-  window.location.href = "index.html";
+  
+  var modal = document.querySelector(".modal");
+  if (modal && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    modal.style.transition = "transform 0.28s var(--apple-spring, cubic-bezier(0.16, 1, 0.3, 1)), opacity 0.22s ease";
+    modal.style.transform = "scale(0.96) translateY(-8px)";
+    modal.style.opacity = "0";
+    setTimeout(function() {
+      window.location.href = "index.html";
+    }, 240);
+  } else {
+    window.location.href = "index.html";
+  }
 }
 
 var currentOtpMode = "phone"; // "phone", "email", or "email_reset"
@@ -568,7 +587,7 @@ function startOtpAnimation() {
 
   otpOrbitTimer = setTimeout(function() {
     if (orbitCont) orbitCont.classList.add("spinning");
-  }, 420);
+  }, 240);
 }
 
 function stopOtpAnimation(errorMsg) {
@@ -619,6 +638,9 @@ function stopOtpAnimation(errorMsg) {
 
   if (errorMsg) {
     showMsg(errorMsg, "error");
+    inputs.forEach(function(inp) {
+      inp.value = "";
+    });
   }
 
   var firstInput = document.getElementById("otp-1");
@@ -761,42 +783,54 @@ function verifyOTP() {
 
   startOtpAnimation();
 
+  // Minimum verification animation duration:
+  // Ensures the wheel rotation is clearly visible while simultaneous verification happens,
+  // without being too slow (approx 1000ms).
+  var minAnimDelay = new Promise(function(resolve) {
+    setTimeout(resolve, 1000);
+  });
+
   // If verifying email OTP for signup or password reset
   if (currentOtpMode === "email" || currentOtpMode === "email_reset") {
     var targetEmail = (currentOtpMode === "email_reset") ? resetEmail : currentEmail;
-    fetch(API + "/auth/email/verify-otp", {
+    var verifyPromise = fetch(API + "/auth/email/verify-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: targetEmail, otp: otp })
-    })
-    .then(function(res) {
+    }).then(function(res) {
       return res.json().then(function(data) {
-        if (!res.ok) {
-          stopOtpAnimation(data.detail || "Invalid verification code.");
-          return;
-        }
-        if (currentOtpMode === "email_reset") {
-          verifiedResetOtp = otp;
-          playOtpSuccessAnimation(function() {
-            document.getElementById("new-pwd-email").textContent = resetEmail;
-            showStep("new-password");
-            var pwdField = document.getElementById("new-password-input");
-            if (pwdField) {
-              pwdField.value = "";
-              pwdField.focus();
-            }
-          });
-        } else {
-          emailOtpVerified = true;
-          playOtpSuccessAnimation(function() {
-            // Email verified! Now prompt user to set their password (and name) to complete signup
-            document.getElementById("signup-email").textContent = currentEmail;
-            showStep("signup");
-            var nameInput = document.getElementById("name-input");
-            if (nameInput) nameInput.focus();
-          });
-        }
+        return { ok: res.ok, data: data };
       });
+    });
+
+    Promise.all([verifyPromise, minAnimDelay])
+    .then(function(results) {
+      var outcome = results[0];
+      if (!outcome.ok) {
+        stopOtpAnimation(outcome.data.detail || "Invalid verification code.");
+        return;
+      }
+      if (currentOtpMode === "email_reset") {
+        verifiedResetOtp = otp;
+        playOtpSuccessAnimation(function() {
+          document.getElementById("new-pwd-email").textContent = resetEmail;
+          showStep("new-password");
+          var pwdField = document.getElementById("new-password-input");
+          if (pwdField) {
+            pwdField.value = "";
+            pwdField.focus();
+          }
+        });
+      } else {
+        emailOtpVerified = true;
+        playOtpSuccessAnimation(function() {
+          // Email verified! Now prompt user to set their password (and name) to complete signup
+          document.getElementById("signup-email").textContent = currentEmail;
+          showStep("signup");
+          var nameInput = document.getElementById("name-input");
+          if (nameInput) nameInput.focus();
+        });
+      }
     })
     .catch(function() {
       stopOtpAnimation("Cannot connect to server. Please try again.");
@@ -804,9 +838,8 @@ function verifyOTP() {
     return;
   }
 
-
   // Otherwise, verifying phone OTP with Firebase
-  window.confirmationResult.confirm(otp)
+  var phoneVerifyPromise = window.confirmationResult.confirm(otp)
   .then(function(result) {
     return result.user.getIdToken().then(function(idToken) {
       pendingFirebaseIdToken = idToken;
@@ -819,34 +852,44 @@ function verifyOTP() {
   })
   .then(function(res) {
     return res.json().then(function(data) {
-      if (!res.ok) {
-        stopOtpAnimation(data.detail || "Verification failed.");
-        return;
-      }
-      pendingPhoneAuthData = data;
-      playOtpSuccessAnimation(function() {
-        // If the user's name is not yet set (or is just their phone number), or DOB is missing, ask to complete profile
-        var isPhoneName = !data.name || data.name === data.phone || data.name.startsWith("+");
-        var hasDob = !!data.dob;
-        if (isPhoneName || !hasDob) {
-          showStep("name");
-          var nameInput = document.getElementById("phone-user-name");
-          var dobInput = document.getElementById("phone-user-dob");
-          if (nameInput) {
-            nameInput.value = (data.name && !data.name.startsWith("+")) ? data.name : "";
-            nameInput.focus();
-          }
-          if (dobInput) {
-            dobInput.value = data.dob || "";
-          }
-        } else {
-          saveAndRedirect(data);
+      return { ok: res.ok, data: data };
+    });
+  });
+
+  Promise.all([phoneVerifyPromise, minAnimDelay])
+  .then(function(results) {
+    var outcome = results[0];
+    if (!outcome.ok) {
+      console.error("[OTP Error] Backend rejected:", outcome.data);
+      stopOtpAnimation(outcome.data.detail || outcome.data.error || "Verification failed.");
+      return;
+    }
+    var data = outcome.data;
+    pendingPhoneAuthData = data;
+    playOtpSuccessAnimation(function() {
+      // If the user's name is not yet set (or is just their phone number), or DOB is missing, ask to complete profile
+      var isPhoneName = !data.name || data.name === data.phone || data.name.startsWith("+");
+      var hasDob = !!data.dob;
+      if (isPhoneName || !hasDob) {
+        showStep("name");
+        var nameInput = document.getElementById("phone-user-name");
+        var dobInput = document.getElementById("phone-user-dob");
+        if (nameInput) {
+          nameInput.value = (data.name && !data.name.startsWith("+")) ? data.name : "";
+          nameInput.focus();
         }
-      });
+        if (dobInput) {
+          dobInput.value = data.dob || "";
+        }
+      } else {
+        saveAndRedirect(data);
+      }
     });
   })
   .catch(function(err) {
-    stopOtpAnimation("Invalid OTP. Please try again.");
+    console.error("[OTP Error] Firebase exception:", err);
+    var msg = (err && err.message) ? err.message : "Invalid OTP. Please try again.";
+    stopOtpAnimation(msg);
   });
 }
 

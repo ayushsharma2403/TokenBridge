@@ -10,7 +10,7 @@ class RegisterRequest(BaseModel):
     name:     str
     email:    str
     password: str
-    dob:      Optional[str] = None
+    dob:      str
 
 
 class LoginRequest(BaseModel):
@@ -141,4 +141,3 @@ class KeyValidationResponse(BaseModel):
     description: Optional[str] = None
     error:       Optional[str] = None
     message:     Optional[str] = None
-

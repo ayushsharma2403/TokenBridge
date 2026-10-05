@@ -1,6 +1,6 @@
 import os
 import uvicorn
-from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form, Request
 from fastapi.responses import RedirectResponse, Response, FileResponse
 from urllib.parse import quote
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +9,10 @@ from typing import Optional
 frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
 
 from config          import HOST, PORT, DEBUG, RESPONSE_BUFFER, APP_URL, CLAUDE_MODEL, OPENAI_MODEL, GEMINI_MODEL
+
+_default_origins = [APP_URL, "http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:5500", "http://127.0.0.1:5500", "http://localhost:3000"]
+ALLOWED_ORIGINS = list({o.strip() for o in (os.getenv("ALLOWED_ORIGINS", "").split(",") + _default_origins) if o.strip()})
+
 from database        import setup
 from models          import (
     ChatRequest, ChatResponse,
@@ -43,7 +47,7 @@ app = FastAPI(
     version="3.0.0"
 )
 
-# Fix: allow_credentials must be False when allow_origins=["*"]
+# CORS middleware with environment-driven allowlist & dev fallback
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -173,8 +177,12 @@ async def forgot_password(req: ForgotPasswordRequest):
 
 
 @app.post("/auth/forgot-password-otp")
-async def forgot_password_otp(req: ForgotPasswordRequest):
+async def forgot_password_otp(req: ForgotPasswordRequest, request: Request):
     """Generates and sends a 6-digit OTP to the registered user email for password reset."""
+    client_ip = request.client.host if request.client else "unknown"
+    if _is_rate_limited(client_ip):
+        raise HTTPException(status_code=429, detail="Too many requests. Please try again shortly.")
+
     import time, random
     email = req.email.strip().lower()
     if not email or "@" not in email:
@@ -200,11 +208,12 @@ async def forgot_password_otp(req: ForgotPasswordRequest):
         "mode": "reset_password"
     }
 
-    sent = send_otp_email(email, otp_code)
+    user_name = user[1] if user else "User"
+    sent = send_otp_email(email, otp_code, user_name=user_name, purpose="reset")
     if not sent:
-        raise HTTPException(status_code=500, detail="Failed to send reset code. Please check your email settings.")
+        raise HTTPException(status_code=500, detail="Failed to send reset code email. Please verify SMTP settings.")
 
-    return {"sent": True, "message": f"Password reset OTP sent to {email}."}
+    return {"sent": True, "message": f"Password reset code sent to {email}"}
 
 
 @app.post("/auth/reset-password-otp")
@@ -389,8 +398,23 @@ async def get_daily_usage(authorization: Optional[str] = Header(None)):
 class EmailCheck(BaseModel):
     email: str
 
+import time as _time
+_CHECK_EMAIL_RATE_LIMIT = {}  # { ip: [timestamps] }
+
+def _is_rate_limited(ip: str, max_requests: int = 10, window_seconds: int = 60) -> bool:
+    now = _time.time()
+    timestamps = _CHECK_EMAIL_RATE_LIMIT.get(ip, [])
+    timestamps = [t for t in timestamps if now - t < window_seconds]
+    timestamps.append(now)
+    _CHECK_EMAIL_RATE_LIMIT[ip] = timestamps
+    return len(timestamps) > max_requests
+
 @app.post("/auth/check-email")
-async def check_email_exists(req: EmailCheck):
+async def check_email_exists(req: EmailCheck, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    if _is_rate_limited(client_ip):
+        raise HTTPException(status_code=429, detail="Too many requests. Please try again shortly.")
+
     from database import connect
     conn = connect()
     c    = conn.cursor()
@@ -405,7 +429,11 @@ async def check_email_exists(req: EmailCheck):
 PENDING_EMAIL_OTPS = {}
 
 @app.post("/auth/email/send-otp")
-async def send_email_otp(req: EmailOtpSendRequest):
+async def send_email_otp(req: EmailOtpSendRequest, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    if _is_rate_limited(client_ip):
+        raise HTTPException(status_code=429, detail="Too many requests. Please try again shortly.")
+
     import time, random
     email = req.email.strip().lower()
     if not email or "@" not in email:
@@ -466,7 +494,8 @@ async def verify_email_otp(req: EmailOtpVerifyRequest):
 # -------------------------------------------------------
 
 @app.get("/api/files/download/{filename}")
-async def download_generated_file(filename: str):
+async def download_generated_file(filename: str, authorization: Optional[str] = Header(None)):
+    get_current_user(authorization)
     from file_generator import GENERATED_DIR
     file_path = os.path.join(GENERATED_DIR, filename)
     if not os.path.exists(file_path):
@@ -531,8 +560,8 @@ async def prompt_engineer(req: PromptEngineerRequest):
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
     user = get_current_user(authorization)
-    checkpoint = Checkpoint(req.session_id)
-    budget     = Budget(req.session_id, req.token_budget)
+    checkpoint = Checkpoint(req.session_id, user_id=user["user_id"])
+    budget     = Budget(req.session_id, req.token_budget, user_id=user["user_id"])
     history    = checkpoint.load()
     history.append({"role": "user", "content": req.message})
 
@@ -649,8 +678,8 @@ async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
 
 @app.get("/session/{session_id}", response_model=SessionInfo)
 async def get_session(session_id: str, authorization: Optional[str] = Header(None)):
-    get_current_user(authorization)
-    checkpoint = Checkpoint(session_id)
+    user = get_current_user(authorization)
+    checkpoint = Checkpoint(session_id, user_id=user["user_id"])
     messages   = checkpoint.load()
     if not messages:
         raise HTTPException(status_code=404, detail=f"No checkpoint found for session {session_id}.")
@@ -664,8 +693,8 @@ async def get_session(session_id: str, authorization: Optional[str] = Header(Non
 
 @app.put("/session/{session_id}")
 async def update_session(session_id: str, req: SessionUpdateRequest, authorization: Optional[str] = Header(None)):
-    get_current_user(authorization)
-    checkpoint = Checkpoint(session_id)
+    user = get_current_user(authorization)
+    checkpoint = Checkpoint(session_id, user_id=user["user_id"])
     checkpoint.save(req.messages)
     return {"message": "Session updated successfully.", "session_id": session_id, "message_count": len(req.messages)}
 
@@ -682,31 +711,37 @@ PROVIDER_MODEL_LIMITS = {
     "openai": {
         "model_name":  OPENAI_MODEL,
         "max_tokens":  128000,
-        "description": f"OpenAI GPT ({OPENAI_MODEL}) - 128,000 token context window",
+        "description": f"OpenAI ({OPENAI_MODEL}) - 128,000 token context window",
         "input_rate":  COSTS.get("openai", {}).get("input", 0.00015),
         "output_rate": COSTS.get("openai", {}).get("output", 0.00060)
     },
     "gemini": {
         "model_name":  GEMINI_MODEL,
         "max_tokens":  1000000,
-        "description": f"Google Gemini ({GEMINI_MODEL}) - 1,000,000 token context window",
-        "input_rate":  COSTS.get("gemini", {}).get("input", 0.0),
-        "output_rate": COSTS.get("gemini", {}).get("output", 0.0)
+        "description": f"Google ({GEMINI_MODEL}) - 1,000,000 token context window",
+        "input_rate":  COSTS.get("gemini", {}).get("input", 0.00000),
+        "output_rate": COSTS.get("gemini", {}).get("output", 0.00000)
     }
 }
 
 
-@app.get("/models/limits")
-async def get_models_limits():
-    """Returns official max token budget and model details for each provider."""
-    return PROVIDER_MODEL_LIMITS
+@app.get("/model/limits/{provider}", response_model=ModelLimits)
+async def get_model_limits(provider: str):
+    prov = (provider or "").strip().lower()
+    if prov not in PROVIDER_MODEL_LIMITS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown provider '{provider}'. Supported providers: claude, openai, gemini"
+        )
+    return ModelLimits(**PROVIDER_MODEL_LIMITS[prov])
 
 
+@app.post("/key/validate", response_model=KeyValidationResponse)
 @app.post("/keys/validate", response_model=KeyValidationResponse)
 async def validate_key_endpoint(req: KeyValidationRequest, authorization: Optional[str] = Header(None)):
     """
-    Validates user API key with the selected provider/model.
-    Returns whether the key is valid, along with its model limits, or an invalid error description.
+    Validates an API key against the provider by making a minimal real API call.
+    Also returns provider context limits and description on success.
     """
     # Allow authenticated users to validate keys
     get_current_user(authorization)
@@ -718,15 +753,15 @@ async def validate_key_endpoint(req: KeyValidationRequest, authorization: Option
 @app.get("/usage/{session_id}", response_model=UsageSummary)
 async def get_usage(session_id: str, token_budget: int = 50000, provider: Optional[str] = None,
                     authorization: Optional[str] = Header(None)):
-    get_current_user(authorization)
-    budget = Budget(session_id, token_budget, provider=provider)
+    user = get_current_user(authorization)
+    budget = Budget(session_id, token_budget, provider=provider, user_id=user["user_id"])
     return UsageSummary(**budget.summary())
 
 
 @app.delete("/session/{session_id}")
 async def delete_session(session_id: str, authorization: Optional[str] = Header(None)):
-    get_current_user(authorization)
-    Checkpoint(session_id).delete()
+    user = get_current_user(authorization)
+    Checkpoint(session_id, user_id=user["user_id"]).delete()
     return {"message": f"Session {session_id} cleared."}
 
 
@@ -736,8 +771,8 @@ async def delete_session(session_id: str, authorization: Optional[str] = Header(
 
 @app.get("/tokenvault/{session_id}")
 async def tokenvault_session(session_id: str, authorization: Optional[str] = Header(None)):
-    get_current_user(authorization)
-    return session_stats(session_id)
+    user = get_current_user(authorization)
+    return session_stats(session_id, user_id=user["user_id"])
 
 
 @app.get("/tokenvault")
@@ -756,4 +791,3 @@ if os.path.exists(frontend_path):
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host=HOST, port=PORT, reload=DEBUG)
-

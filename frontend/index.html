@@ -21,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=8.0">
+  <link rel="stylesheet" href="style.css?v=3.2.7">
 </head>
 <body>
 
@@ -56,7 +56,7 @@
           <h2>TokenBridge</h2>
         </div>
         <button type="button" class="sidebar-close-btn" id="sidebar-close-btn" onclick="closeSidebar()" title="Collapse sidebar" aria-label="Collapse sidebar">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
             <line x1="9" y1="3" x2="9" y2="21"></line>
           </svg>
@@ -456,8 +456,9 @@
         </button>
       </div>
 
-      <!-- Account Navigation Tabs -->
-      <div class="account-tabs-nav">
+      <!-- Account Navigation Tabs (Liquid Glass Segmented Pill) -->
+      <div class="account-tabs-nav" id="account-tabs-nav">
+        <div class="account-tab-indicator" id="account-tab-indicator"></div>
         <button type="button" class="account-tab-btn active" data-tab="profile" onclick="switchAccountTab('profile')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
           Profile
@@ -710,26 +711,26 @@
               <span>⚡</span>
               <h2>TokenBridge</h2>
             </div>
-            <div class="about-version-badge">Version 3.2.0 &bull; Build 2026.1</div>
+            <div class="about-version-badge">Version 3.2</div>
             <p class="about-desc">
-              TokenBridge is a high-performance, token-efficient AI proxy architecture engineered to minimize API costs and context bloat across Claude, OpenAI GPT, and Google Gemini models.
+              A minimalist, native intelligence workspace designed for seamless cross-model productivity and intelligent context management.
             </p>
             <div class="about-details-list">
               <div class="about-detail-row">
-                <span class="detail-k">Architecture</span>
-                <span class="detail-v">FastAPI + Async Python + MySQL Ledger</span>
+                <span class="detail-k">Experience</span>
+                <span class="detail-v">Liquid Glass UI</span>
               </div>
               <div class="about-detail-row">
-                <span class="detail-k">Optical Design</span>
-                <span class="detail-v">Obsidian Liquid Glass (Senior Technologist UI)</span>
+                <span class="detail-k">Privacy & Data</span>
+                <span class="detail-v">On-device key custody &bull; Zero telemetry tracking</span>
               </div>
               <div class="about-detail-row">
                 <span class="detail-k">Security</span>
-                <span class="detail-v">Bearer JWT + AES Vault Encryption</span>
+                <span class="detail-v">Hardware-accelerated encryption</span>
               </div>
               <div class="about-detail-row">
-                <span class="detail-k">License & Privacy</span>
-                <span class="detail-v">Zero telemetry retention &bull; Client API custody</span>
+                <span class="detail-k">System Status</span>
+                <span class="detail-v">Optimal &bull; All engines active</span>
               </div>
             </div>
           </div>
@@ -750,6 +751,7 @@
   <!-- Markdown Rendering & Sanitization (ChatGPT-like rich formatting) -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
-  <script src="app.js?v=5.8"></script>
+  <script src="tb-calendar.js?v=3.2.5"></script>
+  <script src="app.js?v=3.2.7"></script>
 </body>
 </html>

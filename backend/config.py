@@ -30,5 +30,5 @@ RESPONSE_BUFFER = 600
 # --- Server ---
 HOST    = os.getenv("HOST",    "0.0.0.0")
 PORT    = int(os.getenv("PORT", "8000"))
-DEBUG   = os.getenv("DEBUG",   "true").lower() == "true"
+DEBUG   = os.getenv("DEBUG",   "false").lower() == "true"
 APP_URL = os.getenv("APP_URL", f"http://localhost:{PORT}")
