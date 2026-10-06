@@ -6,6 +6,9 @@ from urllib.parse import quote
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
 
 from config          import HOST, PORT, DEBUG, RESPONSE_BUFFER, APP_URL, CLAUDE_MODEL, OPENAI_MODEL, GEMINI_MODEL
