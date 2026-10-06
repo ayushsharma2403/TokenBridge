@@ -54,17 +54,15 @@ A token-efficient AI proxy & liquid-glass workspace interface built for develope
    - Copy `.env.example` to `.env` in `backend/` and configure database credentials and API keys.
 
 4. **Run Server & Application**:
-   - **Start Backend API**:
+   - **Start the Application (Serves both Backend API and Frontend UI)**:
      ```bash
-     cd backend
-     python main.py
+     python -m uvicorn backend.main:app --reload --port 8000
      ```
-   - **Start Frontend Server**:
-     ```bash
-     cd frontend
-     python -m http.server 5500
-     ```
-   - Access application at: `http://localhost:5500/login.html` (or `http://localhost:8000`)
+     *(Or simply `cd backend && python main.py`)*
+   - Open in your browser:
+     - **Login page**: `http://localhost:8000/login.html`
+     - **Main Workspace**: `http://localhost:8000`
+     - **API Documentation**: `http://localhost:8000/docs`
 
 ---
 
