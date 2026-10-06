@@ -1,6 +1,8 @@
 // auth.js - TokenBridge Login Logic
 
-var API = (window.location.port === "8000") ? "" : "http://localhost:8000";
+var API = (window.location.port === "8000" || window.location.port === "")
+  ? ""
+  : (window.location.protocol + "//" + window.location.hostname + ":8000");
 var currentEmail = "";
 
 function toggleTheme() {

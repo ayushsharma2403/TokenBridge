@@ -3,13 +3,26 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_CONFIG = {
-    "host":     os.getenv("DB_HOST",     "localhost"),
-    "port":     int(os.getenv("DB_PORT", "3306")),
-    "user":     os.getenv("DB_USER",     "root"),
-    "password": os.getenv("DB_PASSWORD", ""),
-    "database": os.getenv("DB_NAME",     "tokenbridge"),
-}
+# --- Database Configuration ---
+_raw_db_url = os.getenv("DATABASE_URL") or os.getenv("MYSQL_URL") or ""
+if _raw_db_url:
+    from urllib.parse import urlparse
+    _parsed = urlparse(_raw_db_url)
+    DB_CONFIG = {
+        "host":     _parsed.hostname or "localhost",
+        "port":     int(_parsed.port or 3306),
+        "user":     _parsed.username or "root",
+        "password": _parsed.password or "",
+        "database": (_parsed.path or "").lstrip("/") or "tokenbridge",
+    }
+else:
+    DB_CONFIG = {
+        "host":     os.getenv("DB_HOST",     "localhost"),
+        "port":     int(os.getenv("DB_PORT", "3306")),
+        "user":     os.getenv("DB_USER",     "root"),
+        "password": os.getenv("DB_PASSWORD", ""),
+        "database": os.getenv("DB_NAME",     "tokenbridge"),
+    }
 
 # --- AI Models ---
 CLAUDE_MODEL  = os.getenv("CLAUDE_MODEL",  "claude-3-5-haiku-20241022")
