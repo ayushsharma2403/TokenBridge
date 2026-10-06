@@ -35,6 +35,7 @@ def get_google_login_url() -> str:
         f"&response_type=code"
         f"&scope=openid email profile https://www.googleapis.com/auth/user.birthday.read"
         f"&access_type=offline"
+        f"&prompt=select_account"
     )
     return f"{GOOGLE_AUTH_URL}?{params}"
 
