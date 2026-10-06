@@ -7,6 +7,17 @@ def connect():
     try:
         return mysql.connector.connect(**DB_CONFIG)
     except Error as e:
+        # If Linux container lacks local system CA paths, fallback with ssl_verify_cert=False
+        if "SSL_CTX_set_default_verify_paths" in str(e) or "SSL" in str(e):
+            try:
+                fallback_config = dict(DB_CONFIG)
+                fallback_config.pop("ssl_verify_cert", None)
+                fallback_config.pop("ssl_ca", None)
+                fallback_config["ssl_disabled"] = False
+                fallback_config["ssl_verify_cert"] = False
+                return mysql.connector.connect(**fallback_config)
+            except Error as fallback_err:
+                raise ConnectionError(f"MySQL connection failed: {fallback_err}")
         raise ConnectionError(f"MySQL connection failed: {e}")
 
 
