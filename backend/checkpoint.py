@@ -108,10 +108,10 @@ class Checkpoint:
             return False
         return len(self.load()) > 0
 
-    def delete(self) -> None:
+    def delete(self) -> bool:
         """Wipes the checkpoint — for when a user wants a clean start."""
         if self.user_id is None:
-            return
+            return False
 
         conn = connect()
         c = conn.cursor()
@@ -120,7 +120,9 @@ class Checkpoint:
             (self.session_id, self.user_id)
         )
         conn.commit()
+        deleted = c.rowcount > 0
         conn.close()
+        return deleted
 
     def info(self) -> dict:
         """

@@ -10,8 +10,7 @@ frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "f
 
 from config          import HOST, PORT, DEBUG, RESPONSE_BUFFER, APP_URL, CLAUDE_MODEL, OPENAI_MODEL, GEMINI_MODEL
 
-_default_origins = [APP_URL, "http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:5500", "http://127.0.0.1:5500", "http://localhost:3000"]
-ALLOWED_ORIGINS = list({o.strip() for o in (os.getenv("ALLOWED_ORIGINS", "").split(",") + _default_origins) if o.strip()})
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", APP_URL).split(",") if o.strip()]
 
 from database        import setup
 from models          import (
@@ -50,7 +49,7 @@ app = FastAPI(
 # CORS middleware with environment-driven allowlist & dev fallback
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -751,7 +750,9 @@ async def get_usage(session_id: str, token_budget: int = 50000, provider: Option
 @app.delete("/session/{session_id}")
 async def delete_session(session_id: str, authorization: Optional[str] = Header(None)):
     user = get_current_user(authorization)
-    Checkpoint(session_id, user_id=user["user_id"]).delete()
+    deleted = Checkpoint(session_id, user_id=user["user_id"]).delete()
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"No session found: {session_id}")
     return {"message": f"Session {session_id} cleared."}
 
 
