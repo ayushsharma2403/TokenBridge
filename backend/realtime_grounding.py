@@ -7,9 +7,11 @@ from typing import Optional, List, Dict
 
 
 TEMPORAL_KEYWORDS = [
-    "latest", "today", "current", "news", "now", "recent", "recently", 
-    "price", "weather", "stock", "update", "updates", "who is", "what is happening",
-    "2025", "2026", "this year", "this month", "current time", "current date"
+    "latest news", "breaking news", "news", "current news",
+    "crypto price", "coin price", "price of", "stock price", "stock",
+    "weather", "weather update", "weather forecast",
+    "what is happening", "what happened", "recent events",
+    "who is", "who is the current", "who is president", "who is ceo"
 ]
 
 
@@ -102,14 +104,14 @@ def fetch_crypto_price(query: str) -> Optional[str]:
     """Fetch live crypto price if queried."""
     q = query.lower()
     crypto_map = {
-        "bitcoin": "bitcoin",
-        "btc": "bitcoin",
-        "ethereum": "ethereum",
-        "eth": "ethereum",
-        "solana": "solana",
-        "sol": "solana"
+        r"\bbitcoin\b": "bitcoin",
+        r"\bbtc\b": "bitcoin",
+        r"\bethereum\b": "ethereum",
+        r"\beth\b": "ethereum",
+        r"\bsolana\b": "solana",
+        r"\bsol\b": "solana"
     }
-    found = [cid for key, cid in crypto_map.items() if key in q]
+    found = [cid for pattern, cid in crypto_map.items() if re.search(pattern, q)]
     if not found:
         return None
     try:
@@ -137,8 +139,8 @@ def get_realtime_context(user_query: str) -> str:
     if crypto_data:
         snippets.append(crypto_data)
 
-    # Check news or search query if temporal keywords present
-    if any(k in user_query.lower() for k in ["news", "latest", "update", "happening", "today", "recent"]):
+    # Check news or search query if news / update keywords present
+    if any(k in user_query.lower() for k in ["news", "latest update", "happening", "headline", "current event"]):
         news_items = fetch_news_rss(user_query, max_items=4)
         if news_items:
             snippets.append("Latest News Headings:\n" + "\n".join(news_items))
@@ -148,12 +150,5 @@ def get_realtime_context(user_query: str) -> str:
         wiki_info = fetch_wiki_summary(user_query)
         if wiki_info:
             snippets.append(wiki_info)
-
-    if not snippets:
-        # Fallback to general latest headlines if user simply asks 'what is the latest news' or 'latest updates'
-        if any(k in user_query.lower() for k in ["news", "latest", "what is new"]):
-            general_news = fetch_news_rss("world news", max_items=3)
-            if general_news:
-                snippets.append("Latest Live Headlines:\n" + "\n".join(general_news))
 
     return "\n\n".join(snippets)

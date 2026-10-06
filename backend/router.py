@@ -17,7 +17,7 @@ def detect_provider(api_key: str, provider: str = None) -> str:
         return "openai"
 
 
-def get_efficiency_instruction(efficiency: str) -> str:
+def get_efficiency_instruction(efficiency: str, system_context: str = None) -> str:
     from realtime_grounding import get_current_temporal_anchor
     temporal_anchor = get_current_temporal_anchor()
     eff = (efficiency or "medium").lower()
@@ -29,32 +29,41 @@ def get_efficiency_instruction(efficiency: str) -> str:
         "- Never squish headers or list items into a single continuous paragraph."
     )
     temporal_directive = f"\n\n{temporal_anchor}\n"
+    grounding_directive = ""
+    if system_context and system_context.strip():
+        grounding_directive = (
+            f"\n\n[VERIFIED REAL-TIME INFORMATION & CONTEXT]:\n"
+            f"{system_context.strip()}\n"
+            f"- Synthesize the user's answer accurately using the verified real-time context above when relevant.\n"
+        )
 
     if eff == "low":
-        return (
+        base = (
             "Efficiency Mode: LOW (Short / Fast / Brief).\n"
             "- Answer briefly and concisely in 1 to 3 short paragraphs or compact bullet points.\n"
             "- Get straight to the point without lengthy explanations, preambles, or filler.\n"
-            "- Keep total response length short." + formatting_directive + temporal_directive
+            "- Keep total response length short."
         )
     elif eff in ["high", "hard"]:
-        return (
+        base = (
             "Efficiency Mode: HIGH (Deep / In-Depth / Comprehensive).\n"
             "- Provide a thorough, comprehensive, and in-depth answer.\n"
             "- Include complete explanations, step-by-step reasoning, background details, nuances, and concrete examples or code.\n"
-            "- Do not cut corners; be detailed, elaborate, and rigorous." + formatting_directive + temporal_directive
+            "- Do not cut corners; be detailed, elaborate, and rigorous."
         )
     else:  # medium
-        return (
+        base = (
             "Efficiency Mode: MEDIUM (Balanced / Moderate).\n"
             "- Provide a balanced, moderate-length answer with clear key points and helpful context.\n"
-            "- Neither too brief nor excessively verbose." + formatting_directive + temporal_directive
+            "- Neither too brief nor excessively verbose."
         )
 
+    return base + formatting_directive + temporal_directive + grounding_directive
 
-async def send_to_claude(messages: list, api_key: str, efficiency: str = "medium") -> Tuple[str, int, int]:
+
+async def send_to_claude(messages: list, api_key: str, efficiency: str = "medium", system_context: str = None) -> Tuple[str, int, int]:
     client = anthropic.AsyncAnthropic(api_key=api_key)
-    system_prompt = get_efficiency_instruction(efficiency)
+    system_prompt = get_efficiency_instruction(efficiency, system_context=system_context)
     eff = (efficiency or "medium").lower()
     max_tokens = 350 if eff == "low" else (4096 if eff in ["high", "hard"] else 1024)
 
@@ -71,9 +80,9 @@ async def send_to_claude(messages: list, api_key: str, efficiency: str = "medium
     )
 
 
-async def send_to_openai(messages: list, api_key: str, efficiency: str = "medium") -> Tuple[str, int, int]:
+async def send_to_openai(messages: list, api_key: str, efficiency: str = "medium", system_context: str = None) -> Tuple[str, int, int]:
     client = AsyncOpenAI(api_key=api_key)
-    system_prompt = get_efficiency_instruction(efficiency)
+    system_prompt = get_efficiency_instruction(efficiency, system_context=system_context)
     eff = (efficiency or "medium").lower()
     max_tokens = 350 if eff == "low" else (4096 if eff in ["high", "hard"] else 1024)
 
@@ -90,9 +99,9 @@ async def send_to_openai(messages: list, api_key: str, efficiency: str = "medium
     )
 
 
-async def send_to_gemini(messages: list, api_key: str, efficiency: str = "medium") -> Tuple[str, int, int]:
+async def send_to_gemini(messages: list, api_key: str, efficiency: str = "medium", system_context: str = None) -> Tuple[str, int, int]:
     genai.configure(api_key=api_key)
-    system_prompt = get_efficiency_instruction(efficiency)
+    system_prompt = get_efficiency_instruction(efficiency, system_context=system_context)
 
     # Convert messages to Gemini format, ensuring strictly alternating turns
     history = []
@@ -153,7 +162,7 @@ async def send_to_gemini(messages: list, api_key: str, efficiency: str = "medium
     raise last_error
 
 
-async def call_api(messages: list, api_key: str, provider: str, efficiency: str = "medium") -> Tuple[str, int, int]:
+async def call_api(messages: list, api_key: str, provider: str, efficiency: str = "medium", system_context: str = None) -> Tuple[str, int, int]:
     """
     Routes to the correct provider.
     Returns (reply, input_tokens, output_tokens)
@@ -161,11 +170,11 @@ async def call_api(messages: list, api_key: str, provider: str, efficiency: str 
     provider = detect_provider(api_key, provider)
 
     if provider == "claude":
-        return await send_to_claude(messages, api_key, efficiency=efficiency)
+        return await send_to_claude(messages, api_key, efficiency=efficiency, system_context=system_context)
     elif provider == "openai":
-        return await send_to_openai(messages, api_key, efficiency=efficiency)
+        return await send_to_openai(messages, api_key, efficiency=efficiency, system_context=system_context)
     elif provider == "gemini":
-        return await send_to_gemini(messages, api_key, efficiency=efficiency)
+        return await send_to_gemini(messages, api_key, efficiency=efficiency, system_context=system_context)
     else:
         raise ValueError(
             f"Unknown provider: {provider}. Valid: claude, openai, gemini"

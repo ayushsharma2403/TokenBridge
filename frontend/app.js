@@ -1,13 +1,13 @@
 // app.js - TokenBridge Main Chat Logic
 var API = (window.location.port === "8000" || window.location.port === "")
-  ? "" 
+  ? ""
   : (window.location.protocol + "//" + window.location.hostname + ":8000");
 var sessionId = generateId();
-var messages  = [];
+var messages = [];
 var isLoading = false;
-var sessions  = [];
+var sessions = [];
 var currentUploadedFile = null;
-var currentEfficiency   = localStorage.getItem('tb_efficiency') || 'medium';
+var currentEfficiency = localStorage.getItem('tb_efficiency') || 'medium';
 var currentAbortController = null;
 var speechRecognition = null;
 var isVoiceRecording = false;
@@ -15,14 +15,14 @@ var isVoiceRecording = false;
 // -------------------------------------------------------
 // Init
 // -------------------------------------------------------
-window.onload = function() {
-  var params   = new URLSearchParams(window.location.search);
+window.onload = function () {
+  var params = new URLSearchParams(window.location.search);
   var urlToken = params.get('token');
   if (urlToken) {
-    localStorage.setItem('tb_token',   urlToken);
+    localStorage.setItem('tb_token', urlToken);
     localStorage.setItem('tb_user_id', params.get('user_id') || '');
-    localStorage.setItem('tb_name',    decodeURIComponent(params.get('name')  || 'User'));
-    localStorage.setItem('tb_email',   decodeURIComponent(params.get('email') || ''));
+    localStorage.setItem('tb_name', decodeURIComponent(params.get('name') || 'User'));
+    localStorage.setItem('tb_email', decodeURIComponent(params.get('email') || ''));
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 
@@ -48,10 +48,10 @@ function checkAuth() {
 }
 
 function loadUserInfo() {
-  var name  = localStorage.getItem('tb_name')  || 'User';
+  var name = localStorage.getItem('tb_name') || 'User';
   var email = localStorage.getItem('tb_email') || '';
-  document.getElementById('user-name').textContent   = name;
-  document.getElementById('user-email').textContent  = email;
+  document.getElementById('user-name').textContent = name;
+  document.getElementById('user-email').textContent = email;
   var initial = name.charAt(0).toUpperCase();
   document.getElementById('user-avatar').textContent = initial;
   var railAvatar = document.getElementById('rail-user-avatar');
@@ -60,19 +60,19 @@ function loadUserInfo() {
   var token = localStorage.getItem('tb_token');
   if (token) {
     authFetch('/auth/me')
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-      if (data.user_id) {
-        localStorage.setItem('tb_name',  data.name);
-        localStorage.setItem('tb_email', data.email);
-        document.getElementById('user-name').textContent   = data.name;
-        document.getElementById('user-email').textContent  = data.email;
-        var newInitial = data.name.charAt(0).toUpperCase();
-        document.getElementById('user-avatar').textContent = newInitial;
-        if (railAvatar) { railAvatar.textContent = newInitial; }
-      }
-    })
-    .catch(function() {});
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.user_id) {
+          localStorage.setItem('tb_name', data.name);
+          localStorage.setItem('tb_email', data.email);
+          document.getElementById('user-name').textContent = data.name;
+          document.getElementById('user-email').textContent = data.email;
+          var newInitial = data.name.charAt(0).toUpperCase();
+          document.getElementById('user-avatar').textContent = newInitial;
+          if (railAvatar) { railAvatar.textContent = newInitial; }
+        }
+      })
+      .catch(function () { });
   }
 }
 
@@ -80,22 +80,22 @@ function loadUserInfo() {
 // Theme
 // -------------------------------------------------------
 function toggleTheme() {
-  var html     = document.documentElement;
-  var isDark   = html.getAttribute('data-theme') === 'dark';
+  var html = document.documentElement;
+  var isDark = html.getAttribute('data-theme') === 'dark';
   var newTheme = isDark ? 'light' : 'dark';
   html.classList.add('theme-transitioning');
   html.setAttribute('data-theme', newTheme);
   localStorage.setItem('theme', newTheme);
   updateThemeIcons(newTheme);
-  setTimeout(function() {
+  setTimeout(function () {
     html.classList.remove('theme-transitioning');
   }, 450);
 }
 
 function updateThemeIcons(theme) {
   var isDark = theme === 'dark';
-  var icon   = isDark ? 'Light Mode' : 'Dark Mode';
-  var btns   = document.querySelectorAll('.icon-btn[onclick*="toggleTheme"]');
+  var icon = isDark ? 'Light Mode' : 'Dark Mode';
+  var btns = document.querySelectorAll('.icon-btn[onclick*="toggleTheme"]');
   for (var i = 0; i < btns.length; i++) {
     btns[i].title = icon;
     btns[i].innerHTML = isDark ? '&#9728;' : '&#127769;';
@@ -110,7 +110,7 @@ function loadTheme() {
     saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
   }
   document.documentElement.setAttribute('data-theme', saved);
-  setTimeout(function() { updateThemeIcons(saved); }, 100);
+  setTimeout(function () { updateThemeIcons(saved); }, 100);
 }
 
 // -------------------------------------------------------
@@ -229,7 +229,7 @@ function closeModelTokensDialog() {
   if (overlay) {
     overlay.classList.remove('is-opening');
     overlay.classList.add('is-closing');
-    setTimeout(function() {
+    setTimeout(function () {
       overlay.style.display = 'none';
       overlay.classList.remove('is-closing');
     }, 220);
@@ -266,7 +266,7 @@ function updateSidebarProviderBadge(provider) {
 // -------------------------------------------------------
 function toggleApiKey() {
   var input = document.getElementById('api-key-input');
-  var btn   = document.querySelector('.eye-btn');
+  var btn = document.querySelector('.eye-btn');
   if (input.type === 'password') {
     input.type = 'text';
     if (btn) { btn.innerHTML = '&#128064;'; }
@@ -285,10 +285,10 @@ var MODEL_DEFAULT_LIMITS = {
 
 function fetchModelLimits() {
   authFetch('/models/limits')
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
       if (data && typeof data === 'object') {
-        Object.keys(data).forEach(function(p) {
+        Object.keys(data).forEach(function (p) {
           if (data[p] && data[p].max_tokens) {
             MODEL_DEFAULT_LIMITS[p] = data[p];
           }
@@ -296,7 +296,7 @@ function fetchModelLimits() {
         updateModelLimitsUI();
       }
     })
-    .catch(function() {});
+    .catch(function () { });
 }
 
 function loadProvider() {
@@ -366,13 +366,13 @@ function onApiKeyInput() {
     return;
   }
   setApiKeyStatus('Checking key...', 'pending');
-  keyValidationTimer = setTimeout(function() {
+  keyValidationTimer = setTimeout(function () {
     triggerKeyValidation(false);
   }, 750);
 }
 
 function onApiKeyPaste() {
-  setTimeout(function() {
+  setTimeout(function () {
     triggerKeyValidation(true);
   }, 100);
 }
@@ -426,21 +426,21 @@ function triggerKeyValidation(isExplicit) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider: provider, api_key: key })
   })
-  .then(function(res) {
-    return res.json().then(function(data) {
-      if (!res.ok) {
-        var errDetail = data.detail || data.error || 'Validation failed';
-        handleInvalidApiKey(provider, errDetail);
-      } else if (!data.valid) {
-        handleInvalidApiKey(provider, data.error || 'Invalid API key for ' + provider);
-      } else {
-        handleValidApiKey(provider, key, data);
-      }
+    .then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok) {
+          var errDetail = data.detail || data.error || 'Validation failed';
+          handleInvalidApiKey(provider, errDetail);
+        } else if (!data.valid) {
+          handleInvalidApiKey(provider, data.error || 'Invalid API key for ' + provider);
+        } else {
+          handleValidApiKey(provider, key, data);
+        }
+      });
+    })
+    .catch(function (err) {
+      setApiKeyStatus('⚠️ Network error while validating key. Backend might be offline.', 'error');
     });
-  })
-  .catch(function(err) {
-    setApiKeyStatus('⚠️ Network error while validating key. Backend might be offline.', 'error');
-  });
 }
 
 function handleValidApiKey(provider, key, data) {
@@ -524,22 +524,22 @@ function fetchLiveUsage(targetProvider) {
   if (!sessionId) return;
 
   authFetch('/usage/' + sessionId + '?token_budget=' + budget + '&provider=' + encodeURIComponent(provider))
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
       if (data && typeof data.used !== 'undefined') {
         var used = data.used;
         var remaining = Math.max(0, budget - used);
         updateTokenMeter(remaining, budget);
       }
     })
-    .catch(function() {
+    .catch(function () {
       // Fallback
       updateTokenMeter(budget, budget);
     });
 }
 
 function getApiKey() {
-  var key      = document.getElementById('api-key-input').value.trim();
+  var key = document.getElementById('api-key-input').value.trim();
   var provider = document.getElementById('provider-select').value;
   if (key) { localStorage.setItem('tb_key_' + provider, key); }
   return key;
@@ -554,7 +554,7 @@ function generateId() {
 
 function loadSessions() {
   var saved = localStorage.getItem('tb_sessions');
-  sessions  = saved ? JSON.parse(saved) : [];
+  sessions = saved ? JSON.parse(saved) : [];
   renderSessions();
 }
 
@@ -583,7 +583,7 @@ function initEfficiency() {
   setEfficiency(currentEfficiency, false);
 
   // Close efficiency menu when clicking outside
-  document.addEventListener('click', function(e) {
+  document.addEventListener('click', function (e) {
     var wrap = document.getElementById('efficiency-dropdown-wrap');
     var menu = document.getElementById('efficiency-menu');
     if (wrap && menu && !wrap.contains(e.target)) {
@@ -622,10 +622,10 @@ function setEfficiency(level, shouldPersist) {
     localStorage.setItem('tb_efficiency', level);
   }
 
-  var btn   = document.getElementById('efficiency-btn');
+  var btn = document.getElementById('efficiency-btn');
   var label = document.getElementById('efficiency-label');
-  var menu  = document.getElementById('efficiency-menu');
-  var wrap  = document.getElementById('efficiency-dropdown-wrap');
+  var menu = document.getElementById('efficiency-menu');
+  var wrap = document.getElementById('efficiency-dropdown-wrap');
 
   if (label) {
     label.textContent = level.charAt(0).toUpperCase() + level.slice(1);
@@ -675,7 +675,7 @@ function renderSessions() {
   list.innerHTML = '';
 
   // Sort sessions: pinned first, then regular unarchived sessions
-  var activeSessions = sessions.filter(function(s) { return !s.archived; });
+  var activeSessions = sessions.filter(function (s) { return !s.archived; });
 
   var badge = document.getElementById('session-count-badge');
   if (badge) {
@@ -683,7 +683,7 @@ function renderSessions() {
   }
 
   // Update Archived badge
-  var archivedSessions = sessions.filter(function(s) { return !!s.archived; });
+  var archivedSessions = sessions.filter(function (s) { return !!s.archived; });
   var archivedBadge = document.getElementById('archived-count-badge');
   var archivedBtn = document.getElementById('archived-chats-btn');
   if (archivedBadge) {
@@ -700,14 +700,14 @@ function renderSessions() {
   }
 
   // Pinned items first, keeping recency order
-  var sorted = activeSessions.slice().sort(function(a, b) {
+  var sorted = activeSessions.slice().sort(function (a, b) {
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
     return 0;
   });
 
   for (var i = 0; i < sorted.length; i++) {
-    var s   = sorted[i];
+    var s = sorted[i];
     var div = document.createElement('div');
     div.className = 'session-item' + (s.id === sessionId ? ' active' : '') + (s.pinned ? ' pinned' : '');
     div.setAttribute('data-session-id', s.id);
@@ -719,15 +719,15 @@ function renderSessions() {
       pinBadge +
       '<span class="session-title-text">' + escapeHtml(s.title || 'Chat') + '</span>' +
       '<button type="button" class="session-kebab-btn" title="More options" aria-label="Chat options" onclick="openSessionKebabMenu(event, \'' + s.id + '\')">' +
-        '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">' +
-          '<circle cx="12" cy="5" r="2.2"></circle>' +
-          '<circle cx="12" cy="12" r="2.2"></circle>' +
-          '<circle cx="12" cy="19" r="2.2"></circle>' +
-        '</svg>' +
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">' +
+      '<circle cx="12" cy="5" r="2.2"></circle>' +
+      '<circle cx="12" cy="12" r="2.2"></circle>' +
+      '<circle cx="12" cy="19" r="2.2"></circle>' +
+      '</svg>' +
       '</button>';
 
-    div.onclick = (function(id) {
-      return function(e) {
+    div.onclick = (function (id) {
+      return function (e) {
         // Prevent loading session if click originated from kebab button or menu
         if (e.target.closest && (e.target.closest('.session-kebab-btn') || e.target.closest('.session-kebab-menu'))) {
           return;
@@ -758,7 +758,7 @@ function closeSessionKebabMenu() {
 }
 
 // Global click outside to dismiss kebab menu
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
   var menu = document.getElementById('session-kebab-menu');
   if (menu && !menu.contains(e.target) && !e.target.closest('.session-kebab-btn')) {
     closeSessionKebabMenu();
@@ -802,46 +802,46 @@ function openSessionKebabMenu(event, id) {
 
   menu.innerHTML =
     '<button type="button" class="session-menu-item" onclick="togglePinSessionHandler(\'' + id + '\')">' +
-      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-        '<line x1="12" y1="17" x2="12" y2="22"></line>' +
-        '<path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>' +
-      '</svg>' +
-      '<span>' + (isPinned ? 'Unpin chat' : 'Pin chat') + '</span>' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<line x1="12" y1="17" x2="12" y2="22"></line>' +
+    '<path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>' +
+    '</svg>' +
+    '<span>' + (isPinned ? 'Unpin chat' : 'Pin chat') + '</span>' +
     '</button>' +
     '<button type="button" class="session-menu-item" onclick="renameSessionDialog(\'' + id + '\')">' +
-      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-        '<path d="M12 20h9"></path>' +
-        '<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>' +
-      '</svg>' +
-      '<span>Rename</span>' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M12 20h9"></path>' +
+    '<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>' +
+    '</svg>' +
+    '<span>Rename</span>' +
     '</button>' +
     '<button type="button" class="session-menu-item" onclick="shareSessionDialog(\'' + id + '\')">' +
-      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-        '<circle cx="18" cy="5" r="3"></circle>' +
-        '<circle cx="6" cy="12" r="3"></circle>' +
-        '<circle cx="18" cy="19" r="3"></circle>' +
-        '<line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>' +
-        '<line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>' +
-      '</svg>' +
-      '<span>Share</span>' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<circle cx="18" cy="5" r="3"></circle>' +
+    '<circle cx="6" cy="12" r="3"></circle>' +
+    '<circle cx="18" cy="19" r="3"></circle>' +
+    '<line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>' +
+    '<line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>' +
+    '</svg>' +
+    '<span>Share</span>' +
     '</button>' +
     '<button type="button" class="session-menu-item" onclick="archiveSessionDialog(\'' + id + '\')">' +
-      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-        '<polyline points="21 8 21 21 3 21 3 8"></polyline>' +
-        '<rect x="1" y="3" width="22" height="5"></rect>' +
-        '<line x1="10" y1="12" x2="14" y2="12"></line>' +
-      '</svg>' +
-      '<span>Archive chat</span>' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<polyline points="21 8 21 21 3 21 3 8"></polyline>' +
+    '<rect x="1" y="3" width="22" height="5"></rect>' +
+    '<line x1="10" y1="12" x2="14" y2="12"></line>' +
+    '</svg>' +
+    '<span>Archive chat</span>' +
     '</button>' +
     '<div class="session-menu-divider"></div>' +
     '<button type="button" class="session-menu-item danger" onclick="deleteSessionDialog(\'' + id + '\')">' +
-      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-        '<polyline points="3 6 5 6 21 6"></polyline>' +
-        '<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>' +
-        '<line x1="10" y1="11" x2="10" y2="17"></line>' +
-        '<line x1="14" y1="11" x2="14" y2="17"></line>' +
-      '</svg>' +
-      '<span>Delete</span>' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<polyline points="3 6 5 6 21 6"></polyline>' +
+    '<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>' +
+    '<line x1="10" y1="11" x2="10" y2="17"></line>' +
+    '<line x1="14" y1="11" x2="14" y2="17"></line>' +
+    '</svg>' +
+    '<span>Delete</span>' +
     '</button>';
 
   document.body.appendChild(menu);
@@ -892,10 +892,10 @@ function renameSessionDialog(id) {
   showAppDialog({
     title: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg> Rename Chat',
     bodyHtml: '<label style="display:block;font-size:12px;color:var(--text-sub);margin-bottom:6px;">Chat Name</label>' +
-              '<input type="text" id="rename-session-input" class="tb-dialog-input" value="' + escapeHtml(session.title || '') + '" maxlength="60" />',
+      '<input type="text" id="rename-session-input" class="tb-dialog-input" value="' + escapeHtml(session.title || '') + '" maxlength="60" />',
     confirmText: 'Save',
     confirmClass: 'primary',
-    onConfirm: function() {
+    onConfirm: function () {
       var input = document.getElementById('rename-session-input');
       if (input) {
         var newTitle = input.value.trim();
@@ -911,7 +911,7 @@ function renameSessionDialog(id) {
     }
   });
 
-  setTimeout(function() {
+  setTimeout(function () {
     var input = document.getElementById('rename-session-input');
     if (input) {
       input.focus();
@@ -932,16 +932,16 @@ function shareSessionDialog(id) {
   showAppDialog({
     title: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg> Share Chat',
     bodyHtml: '<p style="font-size:13px;color:var(--text-sub);margin-bottom:12px;">Share this conversation link with your team or collaborators:</p>' +
-              '<input type="text" id="share-session-url" class="tb-dialog-input" value="' + escapeHtml(shareUrl) + '" readonly />',
+      '<input type="text" id="share-session-url" class="tb-dialog-input" value="' + escapeHtml(shareUrl) + '" readonly />',
     confirmText: 'Copy Link',
     confirmClass: 'primary',
-    onConfirm: function() {
+    onConfirm: function () {
       var input = document.getElementById('share-session-url');
       if (input) {
         input.select();
-        navigator.clipboard.writeText(input.value).then(function() {
+        navigator.clipboard.writeText(input.value).then(function () {
           alert('Chat share link copied to clipboard!');
-        }).catch(function() {
+        }).catch(function () {
           document.execCommand('copy');
           alert('Chat share link copied to clipboard!');
         });
@@ -958,7 +958,7 @@ function archiveSessionDialog(id) {
     bodyHtml: '<p style="font-size:13.5px;color:var(--text-sub);line-height:1.5;">Are you sure you want to archive this chat? You can still access archived conversations anytime.</p>',
     confirmText: 'Archive',
     confirmClass: 'primary',
-    onConfirm: function() {
+    onConfirm: function () {
       for (var i = 0; i < sessions.length; i++) {
         if (sessions[i].id === id) {
           sessions[i].archived = true;
@@ -977,7 +977,7 @@ function archiveSessionDialog(id) {
 
 // Open Archived Chats Dialog
 function openArchivedChatsDialog() {
-  var archivedList = sessions.filter(function(s) { return !!s.archived; });
+  var archivedList = sessions.filter(function (s) { return !!s.archived; });
 
   var listHtml = '';
   if (archivedList.length === 0) {
@@ -988,17 +988,17 @@ function openArchivedChatsDialog() {
       var s = archivedList[i];
       listHtml +=
         '<div class="archived-item">' +
-          '<span class="archived-item-title" title="' + escapeHtml(s.title || 'Chat') + '">' + escapeHtml(s.title || 'Chat') + '</span>' +
-          '<div class="archived-item-actions">' +
-            '<button type="button" class="archived-act-btn" onclick="unarchiveSession(\'' + s.id + '\')">' +
-              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>' +
-              '<span>Restore</span>' +
-            '</button>' +
-            '<button type="button" class="archived-act-btn danger" onclick="deleteArchivedSession(\'' + s.id + '\')">' +
-              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>' +
-              '<span>Delete</span>' +
-            '</button>' +
-          '</div>' +
+        '<span class="archived-item-title" title="' + escapeHtml(s.title || 'Chat') + '">' + escapeHtml(s.title || 'Chat') + '</span>' +
+        '<div class="archived-item-actions">' +
+        '<button type="button" class="archived-act-btn" onclick="unarchiveSession(\'' + s.id + '\')">' +
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>' +
+        '<span>Restore</span>' +
+        '</button>' +
+        '<button type="button" class="archived-act-btn danger" onclick="deleteArchivedSession(\'' + s.id + '\')">' +
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>' +
+        '<span>Delete</span>' +
+        '</button>' +
+        '</div>' +
         '</div>';
     }
     listHtml += '</div>';
@@ -1009,7 +1009,7 @@ function openArchivedChatsDialog() {
     bodyHtml: listHtml,
     confirmText: 'Done',
     confirmClass: 'primary',
-    onConfirm: function() {}
+    onConfirm: function () { }
   });
 }
 
@@ -1027,9 +1027,9 @@ function unarchiveSession(id) {
 
 function deleteArchivedSession(id) {
   if (!confirm('Permanently delete this archived chat?')) return;
-  sessions = sessions.filter(function(s) { return s.id !== id; });
+  sessions = sessions.filter(function (s) { return s.id !== id; });
   localStorage.setItem('tb_sessions', JSON.stringify(sessions));
-  authFetch('/session/' + id, { method: 'DELETE' }).catch(function() {});
+  authFetch('/session/' + id, { method: 'DELETE' }).catch(function () { });
   renderSessions();
   openArchivedChatsDialog(); // Refresh dialog
 }
@@ -1042,14 +1042,14 @@ function deleteSessionDialog(id) {
     bodyHtml: '<p style="font-size:13.5px;color:var(--text-sub);line-height:1.5;">Are you sure you want to permanently delete this chat? This action cannot be undone.</p>',
     confirmText: 'Delete',
     confirmClass: 'danger',
-    onConfirm: function() {
+    onConfirm: function () {
       // Remove from localStorage
-      sessions = sessions.filter(function(s) { return s.id !== id; });
+      sessions = sessions.filter(function (s) { return s.id !== id; });
       localStorage.setItem('tb_sessions', JSON.stringify(sessions));
 
       // Request backend deletion
       authFetch('/session/' + id, { method: 'DELETE' })
-        .catch(function() {});
+        .catch(function () { });
 
       // If deleted current active session, reset to new chat
       if (id === sessionId) {
@@ -1071,22 +1071,22 @@ function showAppDialog(opts) {
 
   overlay.innerHTML =
     '<div class="tb-dialog-box" onclick="event.stopPropagation()">' +
-      '<div class="tb-dialog-header">' +
-        '<div class="tb-dialog-title">' + opts.title + '</div>' +
-        '<button type="button" class="tb-dialog-close" onclick="closeAppDialog()" aria-label="Close dialog">' +
-          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
-        '</button>' +
-      '</div>' +
-      '<div class="tb-dialog-body">' +
-        opts.bodyHtml +
-      '</div>' +
-      '<div class="tb-dialog-actions">' +
-        '<button type="button" class="tb-dialog-btn cancel" onclick="closeAppDialog()">Cancel</button>' +
-        '<button type="button" class="tb-dialog-btn ' + (opts.confirmClass || 'primary') + '" id="tb-dialog-confirm-btn">' + (opts.confirmText || 'Confirm') + '</button>' +
-      '</div>' +
+    '<div class="tb-dialog-header">' +
+    '<div class="tb-dialog-title">' + opts.title + '</div>' +
+    '<button type="button" class="tb-dialog-close" onclick="closeAppDialog()" aria-label="Close dialog">' +
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+    '</button>' +
+    '</div>' +
+    '<div class="tb-dialog-body">' +
+    opts.bodyHtml +
+    '</div>' +
+    '<div class="tb-dialog-actions">' +
+    '<button type="button" class="tb-dialog-btn cancel" onclick="closeAppDialog()">Cancel</button>' +
+    '<button type="button" class="tb-dialog-btn ' + (opts.confirmClass || 'primary') + '" id="tb-dialog-confirm-btn">' + (opts.confirmText || 'Confirm') + '</button>' +
+    '</div>' +
     '</div>';
 
-  overlay.onclick = function(e) {
+  overlay.onclick = function (e) {
     if (e.target === overlay) {
       closeAppDialog();
     }
@@ -1096,7 +1096,7 @@ function showAppDialog(opts) {
 
   var confirmBtn = document.getElementById('tb-dialog-confirm-btn');
   if (confirmBtn) {
-    confirmBtn.onclick = function() {
+    confirmBtn.onclick = function () {
       if (typeof opts.onConfirm === 'function') {
         opts.onConfirm();
       }
@@ -1105,7 +1105,7 @@ function showAppDialog(opts) {
   }
 
   // Handle Enter key for confirm
-  overlay.addEventListener('keydown', function(e) {
+  overlay.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (confirmBtn) confirmBtn.click();
@@ -1146,41 +1146,46 @@ function loadSession(id) {
   }
 
   authFetch('/session/' + id)
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
-    if (data.messages) {
-      messages = data.messages;
-      if (data.provider) {
-        for (var k = 0; k < messages.length; k++) {
-          if ((messages[k].role === 'assistant' || messages[k].role === 'ai') && !messages[k].provider) {
-            messages[k].provider = data.provider;
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
+      if (data.messages) {
+        messages = data.messages.map(function (m) {
+          if (m.role === 'user' && typeof m.content === 'string' && m.content.includes('[VERIFIED REAL-TIME INFORMATION & CONTEXT]:')) {
+            m.content = m.content.split('[VERIFIED REAL-TIME INFORMATION & CONTEXT]:')[0].trim();
+          }
+          return m;
+        });
+        if (data.provider) {
+          for (var k = 0; k < messages.length; k++) {
+            if ((messages[k].role === 'assistant' || messages[k].role === 'ai') && !messages[k].provider) {
+              messages[k].provider = data.provider;
+            }
           }
         }
-      }
-      renderAllMessages();
+        renderAllMessages();
 
-      // Determine topic title from messages or saved topic
-      var topicTitle = savedTopic;
-      if (!topicTitle && messages.length > 0) {
-        var firstUserMsg = '';
-        for (var m = 0; m < messages.length; m++) {
-          if (messages[m].role === 'user' && messages[m].content) {
-            firstUserMsg = messages[m].content.trim();
-            break;
+        // Determine topic title from messages or saved topic
+        var topicTitle = savedTopic;
+        if (!topicTitle && messages.length > 0) {
+          var firstUserMsg = '';
+          for (var m = 0; m < messages.length; m++) {
+            if (messages[m].role === 'user' && messages[m].content) {
+              firstUserMsg = messages[m].content.trim();
+              break;
+            }
+          }
+          if (firstUserMsg) {
+            var clean = firstUserMsg.split('\n')[0].replace(/^[#*`\-_\s]+/, '').trim();
+            topicTitle = clean.length > 35 ? (clean.substring(0, 35) + '...') : clean;
           }
         }
-        if (firstUserMsg) {
-          var clean = firstUserMsg.split('\n')[0].replace(/^[#*`\-_\s]+/, '').trim();
-          topicTitle = clean.length > 35 ? (clean.substring(0, 35) + '...') : clean;
-        }
+        document.getElementById('chat-title').textContent = topicTitle || 'Chat';
       }
-      document.getElementById('chat-title').textContent = topicTitle || 'Chat';
-    }
-    fetchLiveUsage();
-  })
-  .catch(function() {
-    fetchLiveUsage();
-  });
+      fetchLiveUsage();
+    })
+    .catch(function () {
+      fetchLiveUsage();
+    });
   renderSessions();
   if (window.innerWidth <= 768) {
     closeSidebar();
@@ -1189,10 +1194,10 @@ function loadSession(id) {
 
 function newChat() {
   sessionId = generateId();
-  messages  = [];
-  var area  = document.getElementById('messages-area');
+  messages = [];
+  var area = document.getElementById('messages-area');
   area.innerHTML = '<div class="empty-state" id="empty-state"><div class="empty-icon">&#9889;</div><h3>Start a conversation</h3><p>Select a provider, paste your API key, and start chatting.</p></div>';
-  document.getElementById('chat-title').textContent          = 'New Chat';
+  document.getElementById('chat-title').textContent = 'New Chat';
   document.getElementById('session-id-display').textContent = sessionId;
   fetchLiveUsage();
   renderSessions();
@@ -1220,27 +1225,27 @@ function normalizeMarkdown(str) {
   s = s.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
 
   // Separate headings stuck to text without preceding newline: (e.g. 'standards). #### 3. Title')
-  s = s.replace(/([^\n])\s+(#{1,6}\s+)/g, function(match, p1, p2) {
+  s = s.replace(/([^\n])\s+(#{1,6}\s+)/g, function (match, p1, p2) {
     return p1 + '\n\n' + p2;
   });
 
   // Separate horizontal rules stuck to text: (e.g. 'text. --- ### Title')
-  s = s.replace(/([^\n])\s+---\s+/g, function(match, p1) {
+  s = s.replace(/([^\n])\s+---\s+/g, function (match, p1) {
     return p1 + '\n\n---\n\n';
   });
 
   // Separate numbered lists stuck to text: (e.g. 'critical: 1. **Game Engines:**')
-  s = s.replace(/([^\n])\s+(\b\d+\.\s+\*\*)/g, function(match, p1, p2) {
+  s = s.replace(/([^\n])\s+(\b\d+\.\s+\*\*)/g, function (match, p1, p2) {
     return p1 + '\n\n' + p2;
   });
 
   // Separate bullet points stuck to text or another bullet: (e.g. 'includes: * **Containers:**')
-  s = s.replace(/([^\n])\s+(\*\s+\*\*)/g, function(match, p1, p2) {
+  s = s.replace(/([^\n])\s+(\*\s+\*\*)/g, function (match, p1, p2) {
     return p1 + '\n* **';
   });
 
   // Separate sub-bullet items: (e.g. '* Powers engines... * Dominates AAA...')
-  s = s.replace(/([^\n])\s+(\*\s+[A-Z])/g, function(match, p1, p2) {
+  s = s.replace(/([^\n])\s+(\*\s+[A-Z])/g, function (match, p1, p2) {
     return p1 + '\n  * ' + p2.replace(/^\*\s+/, '');
   });
 
@@ -1283,7 +1288,7 @@ function formatContent(text) {
     .replace(/'/g, '&#039;');
 
   // Code blocks first
-  escaped = escaped.replace(/```([a-zA-Z0-9_\-+#]*)\n?([\s\S]*?)```/g, function(match, lang, code) {
+  escaped = escaped.replace(/```([a-zA-Z0-9_\-+#]*)\n?([\s\S]*?)```/g, function (match, lang, code) {
     var langTag = lang ? '<div class="code-header"><span class="code-lang">' + lang + '</span></div>' : '';
     return '<div class="code-block-wrapper">' + langTag + '<pre><code>' + code.trim() + '</code></pre></div>';
   });
@@ -1313,7 +1318,7 @@ function formatContent(text) {
 function enhanceCodeBlocks(container) {
   if (!container) return;
   var preElements = container.querySelectorAll('pre');
-  preElements.forEach(function(pre) {
+  preElements.forEach(function (pre) {
     if (pre.closest('.code-block-wrapper')) return;
 
     var codeEl = pre.querySelector('code');
@@ -1340,10 +1345,10 @@ function enhanceCodeBlocks(container) {
     copyBtn.className = 'code-copy-btn';
     copyBtn.type = 'button';
     copyBtn.innerHTML = '&#128203; Copy';
-    copyBtn.onclick = function() {
-      navigator.clipboard.writeText(codeText).then(function() {
+    copyBtn.onclick = function () {
+      navigator.clipboard.writeText(codeText).then(function () {
         copyBtn.innerHTML = '&#10003; Copied!';
-        setTimeout(function() { copyBtn.innerHTML = '&#128203; Copy'; }, 2000);
+        setTimeout(function () { copyBtn.innerHTML = '&#128203; Copy'; }, 2000);
       });
     };
 
@@ -1383,8 +1388,8 @@ function appendMessage(role, content, scroll, msgIndex, provider, animateStreami
   var empty = document.getElementById('empty-state');
   if (empty) { empty.remove(); }
 
-  var area   = document.getElementById('messages-area');
-  var wrap   = document.createElement('div');
+  var area = document.getElementById('messages-area');
+  var wrap = document.createElement('div');
   wrap.className = 'message-wrap ' + (isAi ? 'ai' : 'user');
   wrap.setAttribute('data-index', msgIndex);
 
@@ -1413,16 +1418,16 @@ function appendMessage(role, content, scroll, msgIndex, provider, animateStreami
   contentCol.className = 'message-content-col';
 
   var bubble = document.createElement('div');
-  bubble.className   = 'message-bubble markdown-body';
-  bubble.id          = 'msg-bubble-' + msgIndex;
-  
+  bubble.className = 'message-bubble markdown-body';
+  bubble.id = 'msg-bubble-' + msgIndex;
+
   if (isAi && animateStreaming && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     // macOS fluid text streaming animation
     bubble.classList.add('is-streaming');
     var rawText = content || '';
     var chunkSize = Math.max(2, Math.floor(rawText.length / 75));
     var currentIndex = 0;
-    
+
     function streamNextChunk() {
       if (currentIndex < rawText.length) {
         currentIndex = Math.min(rawText.length, currentIndex + chunkSize);
@@ -1458,11 +1463,11 @@ function appendMessage(role, content, scroll, msgIndex, provider, animateStreami
   var copyIconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
   var checkIconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
   copyBtn.innerHTML = copyIconSvg;
-  copyBtn.onclick = function() {
-    navigator.clipboard.writeText(content).then(function() {
+  copyBtn.onclick = function () {
+    navigator.clipboard.writeText(content).then(function () {
       copyBtn.innerHTML = checkIconSvg;
       copyBtn.classList.add('copied');
-      setTimeout(function() {
+      setTimeout(function () {
         copyBtn.innerHTML = copyIconSvg;
         copyBtn.classList.remove('copied');
       }, 1800);
@@ -1478,7 +1483,7 @@ function appendMessage(role, content, scroll, msgIndex, provider, animateStreami
     editBtn.title = 'Edit & resend';
     editBtn.setAttribute('aria-label', 'Edit message');
     editBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>';
-    editBtn.onclick = function() {
+    editBtn.onclick = function () {
       startEditMessage(msgIndex);
     };
     actionsBar.appendChild(editBtn);
@@ -1491,7 +1496,7 @@ function appendMessage(role, content, scroll, msgIndex, provider, animateStreami
   redoBtn.title = isAi ? 'Regenerate response' : 'Redo / Retry from here';
   redoBtn.setAttribute('aria-label', redoBtn.title);
   redoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>';
-  redoBtn.onclick = function() {
+  redoBtn.onclick = function () {
     if (isAi) {
       regenerateFromIndex(msgIndex);
     } else {
@@ -1508,7 +1513,7 @@ function appendMessage(role, content, scroll, msgIndex, provider, animateStreami
   delBtn.title = 'Delete message';
   delBtn.setAttribute('aria-label', 'Delete message');
   delBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
-  delBtn.onclick = function() {
+  delBtn.onclick = function () {
     deleteMessageAtIndex(msgIndex);
   };
   actionsBar.appendChild(delBtn);
@@ -1552,7 +1557,7 @@ function startEditMessage(index) {
   cancelBtn.type = 'button';
   cancelBtn.className = 'btn-edit-cancel';
   cancelBtn.textContent = 'Cancel';
-  cancelBtn.onclick = function() {
+  cancelBtn.onclick = function () {
     renderAllMessages();
   };
 
@@ -1560,7 +1565,7 @@ function startEditMessage(index) {
   saveBtn.type = 'button';
   saveBtn.className = 'btn-edit-save';
   saveBtn.textContent = 'Save & Resend';
-  saveBtn.onclick = function() {
+  saveBtn.onclick = function () {
     var updatedText = textarea.value.trim();
     if (!updatedText) {
       alert('Message cannot be empty.');
@@ -1569,7 +1574,7 @@ function startEditMessage(index) {
     submitEditedMessage(index, updatedText);
   };
 
-  textarea.onkeydown = function(e) {
+  textarea.onkeydown = function (e) {
     if (e.key === 'Enter') {
       if (e.shiftKey) {
         return;
@@ -1628,7 +1633,7 @@ function deleteMessageAtIndex(index) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages: messages })
-  }).catch(function() {});
+  }).catch(function () { });
 }
 
 function stopGeneration() {
@@ -1661,7 +1666,7 @@ function showTyping() {
   var area = document.getElementById('messages-area');
   var wrap = document.createElement('div');
   wrap.className = 'message-wrap ai';
-  wrap.id        = 'typing-indicator';
+  wrap.id = 'typing-indicator';
 
   var provider = (document.getElementById('provider-select').value || 'claude').toLowerCase();
   var avatar = document.createElement('div');
@@ -1684,7 +1689,7 @@ function showTyping() {
   // Render pure HorizonX Orb Breathing Canvas Ring
   bubble.innerHTML =
     '<div class="orb-breathing-wrapper">' +
-      '<canvas class="orb-breathing-canvas" width="64" height="64"></canvas>' +
+    '<canvas class="orb-breathing-canvas" width="64" height="64"></canvas>' +
     '</div>';
 
   wrap.appendChild(avatar);
@@ -1773,22 +1778,22 @@ function sendMessage() {
   if (isVoiceRecording) {
     stopVoiceInput();
   }
-  var input   = document.getElementById('message-input');
-  var text    = input.value.trim();
+  var input = document.getElementById('message-input');
+  var text = input.value.trim();
   if (!text) { alert('Please type a message.'); return; }
-  input.value        = '';
+  input.value = '';
   input.style.height = 'auto';
   sendSpecificMessage(text);
 }
 
 function sendSpecificMessage(text) {
-  var apiKey  = getApiKey();
+  var apiKey = getApiKey();
 
-  if (!apiKey)   { alert('Please paste your API key in the sidebar.'); return; }
+  if (!apiKey) { alert('Please paste your API key in the sidebar.'); return; }
   if (isLoading) { return; }
 
   var provider = document.getElementById('provider-select').value;
-  var budget   = parseInt(document.getElementById('token-budget').value) || 50000;
+  var budget = parseInt(document.getElementById('token-budget').value) || 50000;
 
   messages.push({ role: 'user', content: text });
   appendMessage('user', text, true, messages.length - 1);
@@ -1803,50 +1808,50 @@ function sendSpecificMessage(text) {
   currentAbortController = new AbortController();
 
   authFetch('/chat', {
-    method:  'POST',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    signal:  currentAbortController.signal,
+    signal: currentAbortController.signal,
     body: JSON.stringify({
-      session_id:   sessionId,
-      message:      text,
-      api_key:      apiKey,
-      provider:     provider,
+      session_id: sessionId,
+      message: text,
+      api_key: apiKey,
+      provider: provider,
       token_budget: budget,
-      efficiency:   currentEfficiency
+      efficiency: currentEfficiency
     })
   })
-  .then(function(res) {
-    removeTyping();
-    return res.json().then(function(data) {
-      if (res.status === 429) {
-        appendMessage('ai', 'Token budget reached. Progress saved. Session: ' + sessionId);
-      } else if (!res.ok) {
-        appendMessage('ai', 'Error: ' + (data.detail || 'Something went wrong.'));
-      } else {
-        var replyProvider = data.provider || provider;
-        messages.push({ role: 'assistant', content: data.reply, provider: replyProvider });
-        appendMessage('ai', data.reply, true, messages.length - 1, replyProvider, true);
-        updateTokenMeter(data.tokens_remaining, budget);
-        updateVaultRow(replyProvider, data.tokens_this_call);
-        saveSessionToList();
-        document.getElementById('session-id-display').textContent = sessionId;
+    .then(function (res) {
+      removeTyping();
+      return res.json().then(function (data) {
+        if (res.status === 429) {
+          appendMessage('ai', 'Token budget reached. Progress saved. Session: ' + sessionId);
+        } else if (!res.ok) {
+          appendMessage('ai', 'Error: ' + (data.detail || 'Something went wrong.'));
+        } else {
+          var replyProvider = data.provider || provider;
+          messages.push({ role: 'assistant', content: data.reply, provider: replyProvider });
+          appendMessage('ai', data.reply, true, messages.length - 1, replyProvider, true);
+          updateTokenMeter(data.tokens_remaining, budget);
+          updateVaultRow(replyProvider, data.tokens_this_call);
+          saveSessionToList();
+          document.getElementById('session-id-display').textContent = sessionId;
+        }
+      });
+    })
+    .catch(function (err) {
+      removeTyping();
+      if (err && err.name === 'AbortError') {
+        return;
       }
+      console.error('Fetch error:', err);
+      var errMsg = (err && err.message) ? err.message : 'Could not reach the server. Make sure backend is running.';
+      appendMessage('ai', 'Connection error: ' + errMsg);
+    })
+    .finally(function () {
+      isLoading = false;
+      currentAbortController = null;
+      toggleStopButton(false);
     });
-  })
-  .catch(function(err) {
-    removeTyping();
-    if (err && err.name === 'AbortError') {
-      return;
-    }
-    console.error('Fetch error:', err);
-    var errMsg = (err && err.message) ? err.message : 'Could not reach the server. Make sure backend is running.';
-    appendMessage('ai', 'Connection error: ' + errMsg);
-  })
-  .finally(function() {
-    isLoading = false;
-    currentAbortController = null;
-    toggleStopButton(false);
-  });
 }
 
 // -------------------------------------------------------
@@ -1854,11 +1859,11 @@ function sendSpecificMessage(text) {
 // -------------------------------------------------------
 function updateTokenMeter(remaining, budget) {
   var used = budget - remaining;
-  var pct  = (remaining / budget) * 100;
+  var pct = (remaining / budget) * 100;
   var fill = document.getElementById('token-fill');
   if (!fill) { return; }
   fill.style.width = pct + '%';
-  fill.className   = 'token-meter-fill' + (pct < 20 ? ' danger' : pct < 50 ? ' warn' : '');
+  fill.className = 'token-meter-fill' + (pct < 20 ? ' danger' : pct < 50 ? ' warn' : '');
   document.getElementById('tokens-used').textContent = used.toLocaleString() + ' used';
   document.getElementById('tokens-left').textContent = remaining.toLocaleString() + ' left';
 }
@@ -1877,22 +1882,22 @@ function updateVaultRow(provider, tokensUsed) {
 
 function updateVault() {
   authFetch('/tokenvault')
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
-    if (data.all_time) {
-      var providers = Object.keys(data.all_time);
-      for (var i = 0; i < providers.length; i++) {
-        var p      = providers[i];
-        var stats  = data.all_time[p];
-        var pLower = p.toLowerCase();
-        var tokEl  = document.getElementById('vault-' + pLower);
-        var costEl = document.getElementById('cost-' + pLower);
-        if (tokEl)  { tokEl.textContent  = (stats.total_tokens || 0).toLocaleString(); }
-        if (costEl) { costEl.textContent = 'USD ' + (stats.cost_usd || 0).toFixed(4); }
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
+      if (data.all_time) {
+        var providers = Object.keys(data.all_time);
+        for (var i = 0; i < providers.length; i++) {
+          var p = providers[i];
+          var stats = data.all_time[p];
+          var pLower = p.toLowerCase();
+          var tokEl = document.getElementById('vault-' + pLower);
+          var costEl = document.getElementById('cost-' + pLower);
+          if (tokEl) { tokEl.textContent = (stats.total_tokens || 0).toLocaleString(); }
+          if (costEl) { costEl.textContent = 'USD ' + (stats.cost_usd || 0).toFixed(4); }
+        }
       }
-    }
-  })
-  .catch(function() {});
+    })
+    .catch(function () { });
 }
 
 // -------------------------------------------------------
@@ -1920,8 +1925,8 @@ function togglePromptPanel(event) {
 }
 
 function openPromptPanel() {
-  var panel    = document.getElementById('prompt-panel');
-  var body     = document.getElementById('prompt-panel-body');
+  var panel = document.getElementById('prompt-panel');
+  var body = document.getElementById('prompt-panel-body');
   var arrowBtn = document.getElementById('prompt-arrow-btn');
   if (!panel) return;
 
@@ -1944,8 +1949,8 @@ function minimizePromptPanel(event) {
   if (event && event.stopPropagation) {
     event.stopPropagation();
   }
-  var panel    = document.getElementById('prompt-panel');
-  var body     = document.getElementById('prompt-panel-body');
+  var panel = document.getElementById('prompt-panel');
+  var body = document.getElementById('prompt-panel-body');
   var arrowBtn = document.getElementById('prompt-arrow-btn');
   if (!panel) return;
 
@@ -1955,11 +1960,12 @@ function minimizePromptPanel(event) {
     return;
   }
 
-  var isMinimized = panel.classList.contains('minimized');
+  var isMinimized = panel.classList.contains('minimized') || (body && body.style.display === 'none');
 
   if (isMinimized) {
     // Expand
     panel.classList.remove('minimized');
+    if (body) { body.style.display = 'flex'; }
     if (arrowBtn) {
       arrowBtn.innerHTML = '&#9660;';
       arrowBtn.title = 'Minimize Prompt Engineer';
@@ -1967,8 +1973,9 @@ function minimizePromptPanel(event) {
     var raw = document.getElementById('raw-prompt');
     if (raw) { raw.focus(); }
   } else {
-    // Minimize (keep the header visible, collapse body with smooth CSS spring)
+    // Minimize (keep the header visible, hide the body)
     panel.classList.add('minimized');
+    if (body) { body.style.display = 'none'; }
     if (arrowBtn) {
       arrowBtn.innerHTML = '&#9650;';
       arrowBtn.title = 'Expand Prompt Engineer';
@@ -1980,14 +1987,14 @@ function closePromptPanel(event) {
   if (event && event.stopPropagation) {
     event.stopPropagation();
   }
-  var panel    = document.getElementById('prompt-panel');
-  var body     = document.getElementById('prompt-panel-body');
+  var panel = document.getElementById('prompt-panel');
+  var body = document.getElementById('prompt-panel-body');
   var arrowBtn = document.getElementById('prompt-arrow-btn');
   if (!panel) return;
 
   panel.classList.remove('is-opening');
   panel.classList.add('is-closing');
-  setTimeout(function() {
+  setTimeout(function () {
     panel.classList.add('hidden');
     panel.classList.remove('minimized', 'is-closing');
     panel.style.display = 'none';
@@ -2002,8 +2009,8 @@ function closePromptPanel(event) {
 
 function updatePromptButtons(active) {
   var headerBtn = document.getElementById('btn-prompt-toggle');
-  var inputBtn  = document.getElementById('btn-prompt-input');
-  var railBtn   = document.querySelector('.rail-prompt-btn');
+  var inputBtn = document.getElementById('btn-prompt-input');
+  var railBtn = document.querySelector('.rail-prompt-btn');
   if (headerBtn) {
     headerBtn.classList.toggle('active', !!active);
     headerBtn.style.color = active ? 'var(--accent)' : '';
@@ -2018,48 +2025,48 @@ function updatePromptButtons(active) {
 }
 
 function optimizePrompt() {
-  var raw    = document.getElementById('raw-prompt').value.trim();
+  var raw = document.getElementById('raw-prompt').value.trim();
   var apiKey = getApiKey();
-  if (!raw)    { alert('Please type a prompt first.'); return; }
+  if (!raw) { alert('Please type a prompt first.'); return; }
   if (!apiKey) { alert('Please paste your API key first.'); return; }
 
-  var btn         = document.querySelector('.btn-optimize');
+  var btn = document.querySelector('.btn-optimize');
   btn.textContent = 'Optimizing...';
-  btn.disabled    = true;
+  btn.disabled = true;
 
   authFetch('/prompt/engineer', {
-    method:  'POST',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ raw_prompt: raw, api_key: apiKey })
+    body: JSON.stringify({ raw_prompt: raw, api_key: apiKey })
   })
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
-    if (data.optimized) {
-      var resultEl = document.getElementById('optimized-result');
-      var btnUse   = document.getElementById('btn-use-prompt');
-      if (resultEl) {
-        resultEl.textContent   = data.optimized;
-        resultEl.style.display = 'block';
-        resultEl.classList.remove('hidden');
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
+      if (data.optimized) {
+        var resultEl = document.getElementById('optimized-result');
+        var btnUse = document.getElementById('btn-use-prompt');
+        if (resultEl) {
+          resultEl.textContent = data.optimized;
+          resultEl.style.display = 'block';
+          resultEl.classList.remove('hidden');
+        }
+        if (btnUse) {
+          btnUse.style.display = 'block';
+          btnUse.classList.remove('hidden');
+        }
+      } else {
+        alert('Optimization failed: ' + (data.detail || 'Unknown error'));
       }
-      if (btnUse) {
-        btnUse.style.display = 'block';
-        btnUse.classList.remove('hidden');
-      }
-    } else {
-      alert('Optimization failed: ' + (data.detail || 'Unknown error'));
-    }
-  })
-  .catch(function() { alert('Could not reach server.'); })
-  .finally(function() {
-    btn.textContent = 'Optimize';
-    btn.disabled    = false;
-  });
+    })
+    .catch(function () { alert('Could not reach server.'); })
+    .finally(function () {
+      btn.textContent = 'Optimize';
+      btn.disabled = false;
+    });
 }
 
 function useOptimizedPrompt() {
-  var resultEl  = document.getElementById('optimized-result');
-  var btnUse    = document.getElementById('btn-use-prompt');
+  var resultEl = document.getElementById('optimized-result');
+  var btnUse = document.getElementById('btn-use-prompt');
   var optimized = resultEl ? resultEl.textContent : '';
   if (optimized) {
     var input = document.getElementById('message-input');
@@ -2107,35 +2114,35 @@ function processFileUpload(file) {
     method: 'POST',
     body: formData
   })
-  .then(function(res) {
-    return res.json().then(function(data) {
-      return { ok: res.ok, status: res.status, data: data };
+    .then(function (res) {
+      return res.json().then(function (data) {
+        return { ok: res.ok, status: res.status, data: data };
+      });
+    })
+    .then(function (result) {
+      if (!result.ok || result.data.error || result.data.detail) {
+        var err = result.data.error || result.data.detail || 'Conversion failed';
+        if (typeof err === 'object') { err = JSON.stringify(err); }
+        showFilePreview('error', err);
+        return;
+      }
+
+      currentUploadedFile = result.data;
+      showFilePreview('ready', result.data);
+
+      // Insert or prepend to message input
+      var input = document.getElementById('message-input');
+      var fileHeader = '[File: ' + result.data.filename + ' | ' + result.data.reduction + ']\n\n';
+      if (input.value.trim()) {
+        input.value = input.value + '\n\n' + fileHeader + result.data.markdown;
+      } else {
+        input.value = fileHeader + result.data.markdown;
+      }
+      autoResize(input);
+    })
+    .catch(function () {
+      showFilePreview('error', 'Network error: Could not connect to backend.');
     });
-  })
-  .then(function(result) {
-    if (!result.ok || result.data.error || result.data.detail) {
-      var err = result.data.error || result.data.detail || 'Conversion failed';
-      if (typeof err === 'object') { err = JSON.stringify(err); }
-      showFilePreview('error', err);
-      return;
-    }
-
-    currentUploadedFile = result.data;
-    showFilePreview('ready', result.data);
-
-    // Insert or prepend to message input
-    var input = document.getElementById('message-input');
-    var fileHeader = '[File: ' + result.data.filename + ' | ' + result.data.reduction + ']\n\n';
-    if (input.value.trim()) {
-      input.value = input.value + '\n\n' + fileHeader + result.data.markdown;
-    } else {
-      input.value = fileHeader + result.data.markdown;
-    }
-    autoResize(input);
-  })
-  .catch(function() {
-    showFilePreview('error', 'Network error: Could not connect to backend.');
-  });
 }
 
 function showFilePreview(state, data) {
@@ -2145,37 +2152,37 @@ function showFilePreview(state, data) {
   if (state === 'converting') {
     preview.style.display = 'flex';
     preview.className = 'file-preview-card';
-    preview.innerHTML = 
+    preview.innerHTML =
       '<div class="file-info-group">' +
-        '<span class="converting-spinner"></span>' +
-        '<span class="file-title">Converting <strong>' + escapeHtml(data.filename) + '</strong> to Markdown (.md)...</span>' +
+      '<span class="converting-spinner"></span>' +
+      '<span class="file-title">Converting <strong>' + escapeHtml(data.filename) + '</strong> to Markdown (.md)...</span>' +
       '</div>';
   } else if (state === 'ready') {
     preview.style.display = 'flex';
     preview.className = 'file-preview-card';
-    preview.innerHTML = 
+    preview.innerHTML =
       '<div class="file-info-group">' +
-        '<span class="file-icon">&#128196;</span>' +
-        '<div class="file-names">' +
-          '<span class="file-title">' + escapeHtml(data.filename) + ' &#8594; <strong>' + escapeHtml(data.md_filename || (data.filename + '.md')) + '</strong></span>' +
-          '<span class="file-badge">' + escapeHtml(data.reduction) + '</span>' +
-        '</div>' +
+      '<span class="file-icon">&#128196;</span>' +
+      '<div class="file-names">' +
+      '<span class="file-title">' + escapeHtml(data.filename) + ' &#8594; <strong>' + escapeHtml(data.md_filename || (data.filename + '.md')) + '</strong></span>' +
+      '<span class="file-badge">' + escapeHtml(data.reduction) + '</span>' +
+      '</div>' +
       '</div>' +
       '<div class="file-actions-group">' +
-        '<button class="btn-file-action btn-download" onclick="downloadCurrentMd()" title="Download converted Markdown file">&#11015; Download .md</button>' +
-        '<button class="btn-file-action" id="btn-copy-md" onclick="copyCurrentMd()" title="Copy Markdown to clipboard">&#128203; Copy</button>' +
-        '<button class="btn-file-action btn-remove" onclick="clearUploadedFile()" title="Dismiss">&#10005;</button>' +
+      '<button class="btn-file-action btn-download" onclick="downloadCurrentMd()" title="Download converted Markdown file">&#11015; Download .md</button>' +
+      '<button class="btn-file-action" id="btn-copy-md" onclick="copyCurrentMd()" title="Copy Markdown to clipboard">&#128203; Copy</button>' +
+      '<button class="btn-file-action btn-remove" onclick="clearUploadedFile()" title="Dismiss">&#10005;</button>' +
       '</div>';
   } else if (state === 'error') {
     preview.style.display = 'flex';
     preview.className = 'file-preview-card error';
-    preview.innerHTML = 
+    preview.innerHTML =
       '<div class="file-info-group">' +
-        '<span class="file-icon">&#9888;</span>' +
-        '<span class="file-title">Error: ' + escapeHtml(data) + '</span>' +
+      '<span class="file-icon">&#9888;</span>' +
+      '<span class="file-title">Error: ' + escapeHtml(data) + '</span>' +
       '</div>' +
       '<div class="file-actions-group">' +
-        '<button class="btn-file-action btn-remove" onclick="clearUploadedFile()" title="Dismiss">&#10005;</button>' +
+      '<button class="btn-file-action btn-remove" onclick="clearUploadedFile()" title="Dismiss">&#10005;</button>' +
       '</div>';
   }
 }
@@ -2196,14 +2203,14 @@ function downloadCurrentMd() {
 
 function copyCurrentMd() {
   if (!currentUploadedFile || !currentUploadedFile.markdown) return;
-  navigator.clipboard.writeText(currentUploadedFile.markdown).then(function() {
+  navigator.clipboard.writeText(currentUploadedFile.markdown).then(function () {
     var btn = document.getElementById('btn-copy-md');
     if (btn) {
       var orig = btn.innerHTML;
       btn.innerHTML = '&#10003; Copied!';
-      setTimeout(function() { btn.innerHTML = orig; }, 2000);
+      setTimeout(function () { btn.innerHTML = orig; }, 2000);
     }
-  }).catch(function() {
+  }).catch(function () {
     alert('Failed to copy to clipboard.');
   });
 }
@@ -2223,27 +2230,27 @@ function setupDragAndDrop() {
   var inputWrap = document.querySelector('.input-wrap');
   if (!inputWrap) return;
 
-  ['dragenter', 'dragover'].forEach(function(eventName) {
-    window.addEventListener(eventName, function(e) {
+  ['dragenter', 'dragover'].forEach(function (eventName) {
+    window.addEventListener(eventName, function (e) {
       e.preventDefault();
       e.stopPropagation();
     }, false);
-    inputWrap.addEventListener(eventName, function(e) {
+    inputWrap.addEventListener(eventName, function (e) {
       e.preventDefault();
       e.stopPropagation();
       inputWrap.classList.add('drag-over');
     }, false);
   });
 
-  ['dragleave', 'dragend'].forEach(function(eventName) {
-    inputWrap.addEventListener(eventName, function(e) {
+  ['dragleave', 'dragend'].forEach(function (eventName) {
+    inputWrap.addEventListener(eventName, function (e) {
       e.preventDefault();
       e.stopPropagation();
       inputWrap.classList.remove('drag-over');
     }, false);
   });
 
-  inputWrap.addEventListener('drop', function(e) {
+  inputWrap.addEventListener('drop', function (e) {
     e.preventDefault();
     e.stopPropagation();
     inputWrap.classList.remove('drag-over');
@@ -2349,7 +2356,7 @@ function startVoiceInput() {
       startingText += ' ';
     }
 
-    speechRecognition.onstart = function() {
+    speechRecognition.onstart = function () {
       isVoiceRecording = true;
       if (voiceBtn) {
         voiceBtn.classList.add('listening');
@@ -2358,7 +2365,7 @@ function startVoiceInput() {
       input.placeholder = 'Listening... Speak now';
     };
 
-    speechRecognition.onresult = function(event) {
+    speechRecognition.onresult = function (event) {
       var interimTranscript = '';
       var finalTranscript = '';
 
@@ -2379,14 +2386,14 @@ function startVoiceInput() {
       input.scrollTop = input.scrollHeight;
     };
 
-    speechRecognition.onerror = function(event) {
+    speechRecognition.onerror = function (event) {
       if (event.error !== 'no-speech' && event.error !== 'aborted') {
         console.warn('Voice input error:', event.error);
       }
       stopVoiceInput();
     };
 
-    speechRecognition.onend = function() {
+    speechRecognition.onend = function () {
       stopVoiceInput();
     };
 
@@ -2416,7 +2423,7 @@ function stopVoiceInput() {
   if (speechRecognition) {
     try {
       speechRecognition.stop();
-    } catch (e) {}
+    } catch (e) { }
     speechRecognition = null;
   }
 }
@@ -2439,7 +2446,7 @@ function openAccountDialog() {
     if (typeof initTBCalendars === 'function') {
       initTBCalendars();
     }
-    setTimeout(function() {
+    setTimeout(function () {
       updateAccountTabIndicator();
     }, 60);
   }
@@ -2450,7 +2457,7 @@ function closeAccountDialog() {
   if (overlay) {
     overlay.classList.remove('is-opening');
     overlay.classList.add('is-closing');
-    setTimeout(function() {
+    setTimeout(function () {
       overlay.style.display = 'none';
       overlay.classList.remove('is-closing');
     }, 220);
@@ -2473,7 +2480,7 @@ function handleAccountEscapeKey(event) {
     // Only intercept arrow keys if user is not typing in an input or textarea
     var activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
     if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
-    
+
     var tabOrder = ['profile', 'security', 'usage', 'subscription', 'preferences', 'about'];
     var activeBtn = document.querySelector('.account-tab-btn.active');
     var currentTab = activeBtn ? activeBtn.getAttribute('data-tab') : 'profile';
@@ -2501,13 +2508,13 @@ function updateAccountTabIndicator(activeBtn) {
     nav.classList.remove('has-indicator');
     return;
   }
-  
+
   var navRect = nav.getBoundingClientRect();
   var btnRect = activeBtn.getBoundingClientRect();
-  
+
   if (btnRect.width === 0 || navRect.width === 0) {
     // Hidden or still rendering in modal
-    setTimeout(function() { updateAccountTabIndicator(activeBtn); }, 50);
+    setTimeout(function () { updateAccountTabIndicator(activeBtn); }, 50);
     return;
   }
 
@@ -2523,7 +2530,7 @@ function switchAccountTab(tabName) {
   clearAccountStatusMsg();
   var activeBtn = null;
   var buttons = document.querySelectorAll('.account-tab-btn');
-  buttons.forEach(function(btn) {
+  buttons.forEach(function (btn) {
     if (btn.getAttribute('data-tab') === tabName) {
       btn.classList.add('active');
       activeBtn = btn;
@@ -2538,7 +2545,7 @@ function switchAccountTab(tabName) {
   }
 
   var contents = document.querySelectorAll('.account-tab-content');
-  contents.forEach(function(content) {
+  contents.forEach(function (content) {
     content.style.display = 'none';
     content.classList.remove('active');
   });
@@ -2554,7 +2561,7 @@ function switchAccountTab(tabName) {
   }
 }
 
-window.addEventListener('resize', function() {
+window.addEventListener('resize', function () {
   var overlay = document.getElementById('account-dialog-overlay');
   if (overlay && overlay.style.display === 'flex') {
     updateAccountTabIndicator();
@@ -2567,7 +2574,7 @@ function showAccountStatusMsg(text, type) {
   el.textContent = text;
   el.className = 'account-status-msg ' + (type || 'info');
   el.style.display = 'block';
-  setTimeout(function() {
+  setTimeout(function () {
     if (el && type === 'success') {
       el.style.display = 'none';
     }
@@ -2584,54 +2591,54 @@ function clearAccountStatusMsg() {
 
 function fetchUserProfile() {
   authFetch('/auth/me')
-  .then(function(res) { return res.json(); })
-  .then(function(user) {
-    if (!user || user.detail) return;
-    currentAccountData = user;
+    .then(function (res) { return res.json(); })
+    .then(function (user) {
+      if (!user || user.detail) return;
+      currentAccountData = user;
 
-    // Header updates
-    var modalName = document.getElementById('account-modal-name');
-    var modalEmail = document.getElementById('account-modal-email');
-    var modalAvatar = document.getElementById('account-header-avatar');
-    if (modalName) modalName.textContent = user.name || 'User Account';
-    if (modalEmail) modalEmail.textContent = user.email || 'No email registered';
-    if (modalAvatar) modalAvatar.textContent = (user.name || 'U').charAt(0).toUpperCase();
+      // Header updates
+      var modalName = document.getElementById('account-modal-name');
+      var modalEmail = document.getElementById('account-modal-email');
+      var modalAvatar = document.getElementById('account-header-avatar');
+      if (modalName) modalName.textContent = user.name || 'User Account';
+      if (modalEmail) modalEmail.textContent = user.email || 'No email registered';
+      if (modalAvatar) modalAvatar.textContent = (user.name || 'U').charAt(0).toUpperCase();
 
-    // Profile Tab Inputs
-    var nameInput = document.getElementById('acc-name');
-    var dobInput = document.getElementById('acc-dob');
-    var ageInput = document.getElementById('acc-age');
-    var emailInput = document.getElementById('acc-email');
-    if (nameInput) nameInput.value = user.name || '';
-    if (dobInput) dobInput.value = user.dob || '';
-    if (ageInput) ageInput.value = (user.age !== null && user.age !== undefined) ? user.age : '';
-    if (emailInput) emailInput.value = user.email || '';
+      // Profile Tab Inputs
+      var nameInput = document.getElementById('acc-name');
+      var dobInput = document.getElementById('acc-dob');
+      var ageInput = document.getElementById('acc-age');
+      var emailInput = document.getElementById('acc-email');
+      if (nameInput) nameInput.value = user.name || '';
+      if (dobInput) dobInput.value = user.dob || '';
+      if (ageInput) ageInput.value = (user.age !== null && user.age !== undefined) ? user.age : '';
+      if (emailInput) emailInput.value = user.email || '';
 
-    // Preferences Tab
-    var langSelect = document.getElementById('acc-language');
-    if (langSelect && user.language) {
-      langSelect.value = user.language;
-    }
+      // Preferences Tab
+      var langSelect = document.getElementById('acc-language');
+      if (langSelect && user.language) {
+        langSelect.value = user.language;
+      }
 
-    // Subscriptions Tier UI
-    updateSubscriptionTierUI(user.subscription_tier || 'Free');
+      // Subscriptions Tier UI
+      updateSubscriptionTierUI(user.subscription_tier || 'Free');
 
-    // Update main user sidebar cards
-    localStorage.setItem('tb_name', user.name);
-    if (user.email) localStorage.setItem('tb_email', user.email);
-    var uName = document.getElementById('user-name');
-    var uEmail = document.getElementById('user-email');
-    var uAvatar = document.getElementById('user-avatar');
-    var railAvatar = document.getElementById('rail-user-avatar');
-    if (uName) uName.textContent = user.name;
-    if (uEmail) uEmail.textContent = user.email || '';
-    var init = (user.name || 'U').charAt(0).toUpperCase();
-    if (uAvatar) uAvatar.textContent = init;
-    if (railAvatar) railAvatar.textContent = init;
-  })
-  .catch(function(err) {
-    console.warn('Failed to load user profile:', err);
-  });
+      // Update main user sidebar cards
+      localStorage.setItem('tb_name', user.name);
+      if (user.email) localStorage.setItem('tb_email', user.email);
+      var uName = document.getElementById('user-name');
+      var uEmail = document.getElementById('user-email');
+      var uAvatar = document.getElementById('user-avatar');
+      var railAvatar = document.getElementById('rail-user-avatar');
+      if (uName) uName.textContent = user.name;
+      if (uEmail) uEmail.textContent = user.email || '';
+      var init = (user.name || 'U').charAt(0).toUpperCase();
+      if (uAvatar) uAvatar.textContent = init;
+      if (railAvatar) railAvatar.textContent = init;
+    })
+    .catch(function (err) {
+      console.warn('Failed to load user profile:', err);
+    });
 }
 
 function autoCalculateAgeFromDob(dobVal) {
@@ -2654,7 +2661,7 @@ function autoCalculateAgeFromDob(dobVal) {
         if (ageInput) ageInput.value = calculatedAge;
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function saveAccountProfile() {
@@ -2679,27 +2686,27 @@ function saveAccountProfile() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: name, dob: dob || null, age: age })
   })
-  .then(function(res) {
-    return res.json().then(function(data) {
+    .then(function (res) {
+      return res.json().then(function (data) {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Save Profile';
+        }
+        if (!res.ok) {
+          showAccountStatusMsg(data.detail || 'Failed to update profile.', 'error');
+          return;
+        }
+        showAccountStatusMsg('Profile details updated successfully.', 'success');
+        fetchUserProfile();
+      });
+    })
+    .catch(function () {
       if (btn) {
         btn.disabled = false;
         btn.textContent = 'Save Profile';
       }
-      if (!res.ok) {
-        showAccountStatusMsg(data.detail || 'Failed to update profile.', 'error');
-        return;
-      }
-      showAccountStatusMsg('Profile details updated successfully.', 'success');
-      fetchUserProfile();
+      showAccountStatusMsg('Cannot connect to server. Please try again.', 'error');
     });
-  })
-  .catch(function() {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = 'Save Profile';
-    }
-    showAccountStatusMsg('Cannot connect to server. Please try again.', 'error');
-  });
 }
 
 function toggleAccPwdVisibility(inputId, btn) {
@@ -2739,88 +2746,88 @@ function saveAccountPassword() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ old_password: oldPwd, new_password: newPwd })
   })
-  .then(function(res) {
-    return res.json().then(function(data) {
+    .then(function (res) {
+      return res.json().then(function (data) {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Update Password';
+        }
+        if (!res.ok) {
+          showAccountStatusMsg(data.detail || data.error || 'Failed to update password.', 'error');
+          return;
+        }
+        showAccountStatusMsg('Password updated successfully.', 'success');
+        document.getElementById('acc-old-pwd').value = '';
+        document.getElementById('acc-new-pwd').value = '';
+        document.getElementById('acc-confirm-pwd').value = '';
+      });
+    })
+    .catch(function () {
       if (btn) {
         btn.disabled = false;
         btn.textContent = 'Update Password';
       }
-      if (!res.ok) {
-        showAccountStatusMsg(data.detail || data.error || 'Failed to update password.', 'error');
-        return;
-      }
-      showAccountStatusMsg('Password updated successfully.', 'success');
-      document.getElementById('acc-old-pwd').value = '';
-      document.getElementById('acc-new-pwd').value = '';
-      document.getElementById('acc-confirm-pwd').value = '';
+      showAccountStatusMsg('Cannot connect to server. Please try again.', 'error');
     });
-  })
-  .catch(function() {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = 'Update Password';
-    }
-    showAccountStatusMsg('Cannot connect to server. Please try again.', 'error');
-  });
 }
 
 function fetchDailyUsage() {
   authFetch('/auth/daily-usage')
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
-    if (!data || data.detail) return;
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
+      if (!data || data.detail) return;
 
-    var today = data.today || {};
-    var used = today.tokens_used || 0;
-    var limit = data.daily_quota || 50000;
-    var remaining = today.tokens_remaining !== undefined ? today.tokens_remaining : Math.max(0, limit - used);
-    var saved = today.tokens_saved || 0;
-    var cost = today.cost_usd || 0.0;
-    var calls = today.calls || 0;
-    var percent = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+      var today = data.today || {};
+      var used = today.tokens_used || 0;
+      var limit = data.daily_quota || 50000;
+      var remaining = today.tokens_remaining !== undefined ? today.tokens_remaining : Math.max(0, limit - used);
+      var saved = today.tokens_saved || 0;
+      var cost = today.cost_usd || 0.0;
+      var calls = today.calls || 0;
+      var percent = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
 
-    var elUsed = document.getElementById('daily-tokens-used');
-    var elLimit = document.getElementById('daily-tokens-limit');
-    var elFill = document.getElementById('daily-progress-fill');
-    var elRem = document.getElementById('daily-tokens-remaining');
-    var elSaved = document.getElementById('daily-tokens-saved');
-    var elCost = document.getElementById('daily-cost-usd');
-    var elCalls = document.getElementById('daily-calls-count');
+      var elUsed = document.getElementById('daily-tokens-used');
+      var elLimit = document.getElementById('daily-tokens-limit');
+      var elFill = document.getElementById('daily-progress-fill');
+      var elRem = document.getElementById('daily-tokens-remaining');
+      var elSaved = document.getElementById('daily-tokens-saved');
+      var elCost = document.getElementById('daily-cost-usd');
+      var elCalls = document.getElementById('daily-calls-count');
 
-    if (elUsed) elUsed.textContent = used.toLocaleString() + ' tokens (' + percent + '%)';
-    if (elLimit) elLimit.textContent = limit.toLocaleString() + ' tokens';
-    if (elFill) elFill.style.width = percent + '%';
-    if (elRem) elRem.textContent = remaining.toLocaleString() + ' tokens';
-    if (elSaved) elSaved.textContent = saved.toLocaleString() + ' saved';
-    if (elCost) elCost.textContent = 'USD ' + Number(cost).toFixed(4);
-    if (elCalls) elCalls.textContent = calls + ' calls';
+      if (elUsed) elUsed.textContent = used.toLocaleString() + ' tokens (' + percent + '%)';
+      if (elLimit) elLimit.textContent = limit.toLocaleString() + ' tokens';
+      if (elFill) elFill.style.width = percent + '%';
+      if (elRem) elRem.textContent = remaining.toLocaleString() + ' tokens';
+      if (elSaved) elSaved.textContent = saved.toLocaleString() + ' saved';
+      if (elCost) elCost.textContent = 'USD ' + Number(cost).toFixed(4);
+      if (elCalls) elCalls.textContent = calls + ' calls';
 
-    // Populate Daily History List
-    var historyContainer = document.getElementById('daily-history-table');
-    if (historyContainer && data.history) {
-      if (data.history.length === 0) {
-        historyContainer.innerHTML = '<div style="font-size:11px; color:var(--text-muted); text-align:center; padding:12px;">No activity logged yet. Start chatting to view daily usage.</div>';
-      } else {
-        var html = '';
-        data.history.forEach(function(row) {
-          html += '<div class="history-row">';
-          html += '  <span class="hist-date">' + row.date + '</span>';
-          html += '  <span class="hist-toks">' + (row.total_tokens || 0).toLocaleString() + ' tokens</span>';
-          html += '  <span class="hist-cst">USD ' + Number(row.cost_usd || 0).toFixed(4) + '</span>';
-          html += '</div>';
-        });
-        historyContainer.innerHTML = html;
+      // Populate Daily History List
+      var historyContainer = document.getElementById('daily-history-table');
+      if (historyContainer && data.history) {
+        if (data.history.length === 0) {
+          historyContainer.innerHTML = '<div style="font-size:11px; color:var(--text-muted); text-align:center; padding:12px;">No activity logged yet. Start chatting to view daily usage.</div>';
+        } else {
+          var html = '';
+          data.history.forEach(function (row) {
+            html += '<div class="history-row">';
+            html += '  <span class="hist-date">' + row.date + '</span>';
+            html += '  <span class="hist-toks">' + (row.total_tokens || 0).toLocaleString() + ' tokens</span>';
+            html += '  <span class="hist-cst">USD ' + Number(row.cost_usd || 0).toFixed(4) + '</span>';
+            html += '</div>';
+          });
+          historyContainer.innerHTML = html;
+        }
       }
-    }
-  })
-  .catch(function(err) {
-    console.warn('Failed to fetch daily usage:', err);
-  });
+    })
+    .catch(function (err) {
+      console.warn('Failed to fetch daily usage:', err);
+    });
 }
 
 function updateSubscriptionTierUI(activeTier) {
   var tiers = ['Free', 'Pro', 'Enterprise'];
-  tiers.forEach(function(tier) {
+  tiers.forEach(function (tier) {
     var card = document.getElementById('tier-card-' + tier);
     var badge = document.getElementById('badge-tier-' + tier);
     var btn = document.getElementById('btn-tier-' + tier);
@@ -2852,16 +2859,16 @@ function selectSubscriptionTier(tier) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ subscription_tier: tier })
   })
-  .then(function(res) {
-    return res.json().then(function() {
-      showAccountStatusMsg('Subscribed to ' + tier + ' plan successfully!', 'success');
-      updateSubscriptionTierUI(tier);
-      fetchDailyUsage();
+    .then(function (res) {
+      return res.json().then(function () {
+        showAccountStatusMsg('Subscribed to ' + tier + ' plan successfully!', 'success');
+        updateSubscriptionTierUI(tier);
+        fetchDailyUsage();
+      });
+    })
+    .catch(function () {
+      showAccountStatusMsg('Failed to update subscription tier.', 'error');
     });
-  })
-  .catch(function() {
-    showAccountStatusMsg('Failed to update subscription tier.', 'error');
-  });
 }
 
 function loadAccountPreferencesUI() {
@@ -2897,10 +2904,10 @@ function onAccountLanguageChange(lang) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ language: lang })
   })
-  .then(function() {
-    showAccountStatusMsg('Language preference updated.', 'success');
-  })
-  .catch(function() {});
+    .then(function () {
+      showAccountStatusMsg('Language preference updated.', 'success');
+    })
+    .catch(function () { });
 }
 
 function onAccountEfficiencyChange(level) {
@@ -2924,12 +2931,12 @@ function saveAccountPreferences() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ language: lang })
   })
-  .then(function() {
-    showAccountStatusMsg('Preferences saved successfully.', 'success');
-  })
-  .catch(function() {
-    showAccountStatusMsg('Failed to save preferences.', 'error');
-  });
+    .then(function () {
+      showAccountStatusMsg('Preferences saved successfully.', 'success');
+    })
+    .catch(function () {
+      showAccountStatusMsg('Failed to save preferences.', 'error');
+    });
 }
 
 

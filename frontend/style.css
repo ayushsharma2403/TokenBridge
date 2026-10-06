@@ -853,25 +853,151 @@ html.theme-transitioning *::after {
   top: calc(100% + 8px);
   left: 0;
   z-index: 100;
-  width: 260px;
+  width: 290px;
   background: var(--glass-surface-elevated);
   backdrop-filter: var(--glass-filter-modal);
   -webkit-backdrop-filter: var(--glass-filter-modal);
   border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  border-radius: 18px;
   box-shadow:
     inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.45),
     0 24px 50px -10px rgba(0, 0, 0, 0.75);
   padding: 10px;
   animation: liquidSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 [data-theme="light"] .country-dropdown-menu {
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.88);
   border-color: rgba(255, 255, 255, 0.85);
   box-shadow:
     inset 0 1.5px 1.5px 0 #ffffff,
     0 20px 45px -8px rgba(15, 23, 42, 0.15);
+}
+
+.country-search-box {
+  width: 100%;
+}
+
+.country-search-box input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-pure);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.country-search-box input:focus {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+[data-theme="light"] .country-search-box input {
+  background: rgba(0, 0, 0, 0.04);
+  color: #0f172a;
+}
+
+[data-theme="light"] .country-search-box input:focus {
+  background: #ffffff;
+  border-color: var(--accent);
+}
+
+.country-list {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 2px;
+}
+
+.country-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.country-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.country-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+}
+
+[data-theme="light"] .country-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.country-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-pure);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  text-align: left;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.country-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.country-item.active {
+  background: rgba(99, 102, 241, 0.18);
+  font-weight: 600;
+}
+
+[data-theme="light"] .country-item {
+  color: #1e293b;
+}
+
+[data-theme="light"] .country-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .country-item.active {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent);
+}
+
+.country-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-item-left span:first-child {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.country-item-dial {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  opacity: 0.7;
+  flex-shrink: 0;
+  margin-left: 8px;
 }
 
 .continue-btn {
@@ -3153,19 +3279,30 @@ html.theme-transitioning *::after {
 
 /* Typing Indicator — Orb Breathing Animation */
 .typing-bubble {
-  padding: 8px 16px 8px 10px !important;
-  background: var(--surface-primary) !important;
-  border-radius: 9999px !important;
-  border: 1px solid var(--glass-border) !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
   display: inline-flex !important;
   align-items: center !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+  justify-content: center !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 [data-theme="light"] .typing-bubble {
-  background: #ffffff !important;
-  border-color: rgba(15, 23, 42, 0.12) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.orb-breathing-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .orb-breathing-container {

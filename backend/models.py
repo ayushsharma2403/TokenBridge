@@ -51,10 +51,11 @@ class EmailOtpVerifyRequest(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    token:   str
-    user_id: int
-    name:    str
-    email:   str
+    token:       str
+    user_id:     int
+    name:        str
+    email:       str
+    is_new_user: bool = False
 
 
 # -------------------------------------------------------

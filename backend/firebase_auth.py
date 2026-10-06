@@ -42,9 +42,10 @@ def login_with_phone(id_token: str, user_name: str = None, dob: str = None) -> d
     conn = connect()
     c    = conn.cursor()
 
+    # Check if user already exists by Firebase UID or phone number
     c.execute(
-        "SELECT id, name, email, dob, age FROM users WHERE google_id = %s",
-        (uid,)
+        "SELECT id, name, email, dob, age FROM users WHERE google_id = %s OR phone = %s",
+        (uid, phone)
     )
     existing = c.fetchone()
 
@@ -65,6 +66,7 @@ def login_with_phone(id_token: str, user_name: str = None, dob: str = None) -> d
         conn.close()
         return {"error": "Access restricted: You must be at least 18 years old to log in."}
 
+    is_new = False
     if existing:
         user_id = existing[0]
         name    = existing[1]
@@ -77,8 +79,11 @@ def login_with_phone(id_token: str, user_name: str = None, dob: str = None) -> d
             conn.close()
             return {"error": "Access restricted: You must be at least 18 years old to log in."}
 
+        # Keep google_id / phone updated
+        c.execute("UPDATE users SET google_id = %s, phone = %s WHERE id = %s", (uid, phone, user_id))
+
         # If user passed a custom name and existing name was just the phone or needs update
-        if clean_name and (name == phone or name != clean_name):
+        if clean_name and (name == phone or name.startswith("+") or name != clean_name):
             name = clean_name
             c.execute("UPDATE users SET name = %s WHERE id = %s", (name, user_id))
         if clean_dob:
@@ -86,12 +91,13 @@ def login_with_phone(id_token: str, user_name: str = None, dob: str = None) -> d
             c.execute("UPDATE users SET dob = %s, age = %s WHERE id = %s", (clean_dob, age, user_id))
         conn.commit()
     else:
+        is_new = True
         name  = clean_name if clean_name else phone
         email = ""
         curr_dob = clean_dob
         c.execute(
-            "INSERT INTO users (name, email, google_id, dob, age) VALUES (%s, %s, %s, %s, %s)",
-            (name, None, uid, clean_dob, age)
+            "INSERT INTO users (name, email, phone, google_id, dob, age) VALUES (%s, %s, %s, %s, %s, %s)",
+            (name, None, phone, uid, clean_dob, age)
         )
         conn.commit()
         user_id = c.lastrowid
@@ -101,11 +107,12 @@ def login_with_phone(id_token: str, user_name: str = None, dob: str = None) -> d
 
     token = create_token(user_id)
     return {
-        "token":   token,
-        "user_id": user_id,
-        "name":    name,
-        "email":   email,
-        "phone":   phone,
-        "dob":     curr_dob
+        "token":       token,
+        "user_id":     user_id,
+        "name":        name,
+        "email":       email,
+        "phone":       phone,
+        "dob":         curr_dob,
+        "is_new_user": is_new
     }
 

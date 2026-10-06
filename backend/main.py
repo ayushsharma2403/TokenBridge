@@ -575,23 +575,12 @@ async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
     optimized, estimated_tokens = optimize(history, req.api_key, efficiency=efficiency)
     tokens_saved                = max(0, tokens_before - estimated_tokens)
 
-    # Real-time search & factual grounding injection if query seeks latest/current info
+    # Real-time search & factual grounding context if query seeks latest/current info
+    live_context = None
     try:
         from realtime_grounding import needs_realtime_context, get_realtime_context
         if needs_realtime_context(req.message):
             live_context = get_realtime_context(req.message)
-            if live_context and optimized:
-                # Augment the latest user message with verified live context
-                last_user_idx = len(optimized) - 1
-                while last_user_idx >= 0 and optimized[last_user_idx].get("role") != "user":
-                    last_user_idx -= 1
-                if last_user_idx >= 0:
-                    orig_content = optimized[last_user_idx]["content"]
-                    optimized[last_user_idx]["content"] = (
-                        f"{orig_content}\n\n"
-                        f"[VERIFIED REAL-TIME INFORMATION & CONTEXT]:\n{live_context}\n"
-                        f"Please synthesize the response using this verified real-time context."
-                    )
     except Exception as ground_err:
         print(f"[RealTimeGrounding] Notice: {ground_err}")
 
@@ -613,7 +602,8 @@ async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
             messages=optimized,
             api_key=req.api_key,
             provider=provider,
-            efficiency=efficiency
+            efficiency=efficiency,
+            system_context=live_context
         )
     except Exception as e:
         checkpoint.save(history, req.provider)

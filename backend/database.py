@@ -33,6 +33,11 @@ def setup():
         print(f"[DB Migration] Skipped (likely already applied): {e}")
 
     try:
+        c.execute("ALTER TABLE users ADD COLUMN phone VARCHAR(30) NULL AFTER email")
+    except Exception as e:
+        print(f"[DB Migration] Skipped (likely already applied): {e}")
+
+    try:
         c.execute("ALTER TABLE users ADD COLUMN dob DATE NULL AFTER email")
     except Exception as e:
         print(f"[DB Migration] Skipped (likely already applied): {e}")

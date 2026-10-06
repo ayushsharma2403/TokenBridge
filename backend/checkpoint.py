@@ -74,7 +74,13 @@ class Checkpoint:
         conn.close()
 
         if row:
-            return json.loads(row["messages"])  # JSON string → list
+            loaded_msgs = json.loads(row["messages"])  # JSON string → list
+            # Clean up any legacy injected real-time context from user messages
+            for msg in loaded_msgs:
+                if msg.get("role") == "user" and isinstance(msg.get("content"), str):
+                    if "[VERIFIED REAL-TIME INFORMATION & CONTEXT]:" in msg["content"]:
+                        msg["content"] = msg["content"].split("[VERIFIED REAL-TIME INFORMATION & CONTEXT]:")[0].strip()
+            return loaded_msgs
 
         return []  # no checkpoint found, start fresh
 

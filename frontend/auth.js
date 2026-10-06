@@ -867,10 +867,14 @@ function verifyOTP() {
     var data = outcome.data;
     pendingPhoneAuthData = data;
     playOtpSuccessAnimation(function() {
-      // If the user's name is not yet set (or is just their phone number), or DOB is missing, ask to complete profile
+      // If returning account (not new user) and already has a profile, redirect immediately.
+      // Only ask for Name and DOB if this is a newly created account (or existing account with no name & dob set).
+      var isNew = (data.is_new_user === true);
       var isPhoneName = !data.name || data.name === data.phone || data.name.startsWith("+");
       var hasDob = !!data.dob;
-      if (isPhoneName || !hasDob) {
+      var needsProfile = isNew || (isPhoneName && !hasDob);
+
+      if (needsProfile) {
         showStep("name");
         var nameInput = document.getElementById("phone-user-name");
         var dobInput = document.getElementById("phone-user-dob");
