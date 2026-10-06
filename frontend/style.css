@@ -558,6 +558,28 @@ html.theme-transitioning *::after {
   margin-bottom: 22px;
 }
 
+.brand-logo-img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  transition: transform 0.3s var(--apple-spring);
+}
+
+.brand-logo-img:hover {
+  transform: scale(1.06) rotate(1deg);
+}
+
+.sidebar-logo-img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+}
+
 .logo span {
   display: inline-flex;
   align-items: center;
