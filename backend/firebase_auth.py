@@ -5,9 +5,22 @@ from auth import create_token
 import os
 
 cred_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "firebase_key.json")
+firebase_env_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+
 if not firebase_admin._apps:
-    cred = credentials.Certificate(cred_path)
-    firebase_admin.initialize_app(cred)
+    try:
+        if firebase_env_json:
+            import json
+            cred_dict = json.loads(firebase_env_json)
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+        elif os.path.exists(cred_path):
+            cred = credentials.Certificate(cred_path)
+            firebase_admin.initialize_app(cred)
+        else:
+            print("[Firebase] Warning: firebase_key.json not found and FIREBASE_SERVICE_ACCOUNT_JSON not set. Phone OTP disabled until configured.")
+    except Exception as e:
+        print(f"[Firebase] Initialization failed: {e}")
 
 
 def verify_firebase_token(id_token: str) -> dict:

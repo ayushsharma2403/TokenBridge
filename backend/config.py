@@ -15,6 +15,8 @@ if _raw_db_url:
         "password": _parsed.password or "",
         "database": (_parsed.path or "").lstrip("/") or "tokenbridge",
     }
+    if _parsed.hostname and _parsed.hostname != "localhost" and _parsed.hostname != "127.0.0.1":
+        DB_CONFIG["ssl_verify_cert"] = True
 else:
     DB_CONFIG = {
         "host":     os.getenv("DB_HOST",     "localhost"),
