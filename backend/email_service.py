@@ -77,9 +77,15 @@ If you did not request this, ignore this email.
     msg.attach(MIMEText(html, "html"))
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(GMAIL_ADDRESS, GMAIL_PASSWORD)
-            server.sendmail(GMAIL_ADDRESS, to_email, msg.as_string())
+        try:
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
+                server.starttls()
+                server.login(GMAIL_ADDRESS, GMAIL_PASSWORD)
+                server.sendmail(GMAIL_ADDRESS, to_email, msg.as_string())
+        except Exception:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
+                server.login(GMAIL_ADDRESS, GMAIL_PASSWORD)
+                server.sendmail(GMAIL_ADDRESS, to_email, msg.as_string())
         print(f"[Email] Reset email sent to {to_email}")
         return True
     except Exception as e:
@@ -137,9 +143,15 @@ This code will expire in 10 minutes. If you did not request this code, please ig
     msg.attach(MIMEText(html, "html"))
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(GMAIL_ADDRESS, GMAIL_PASSWORD)
-            server.sendmail(GMAIL_ADDRESS, to_email, msg.as_string())
+        try:
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
+                server.starttls()
+                server.login(GMAIL_ADDRESS, GMAIL_PASSWORD)
+                server.sendmail(GMAIL_ADDRESS, to_email, msg.as_string())
+        except Exception:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
+                server.login(GMAIL_ADDRESS, GMAIL_PASSWORD)
+                server.sendmail(GMAIL_ADDRESS, to_email, msg.as_string())
         print(f"[Email] OTP code sent to {to_email}")
         return True
     except Exception as e:
